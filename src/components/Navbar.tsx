@@ -22,9 +22,11 @@ export default function Navbar() {
       <nav className="container flex h-16 items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
-            <Car className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Raahi Logo"
+            className="h-12 w-12 object-fill"
+          />
           <span className="text-xl font-bold gradient-text">Raahi</span>
         </Link>
 
@@ -46,10 +48,10 @@ export default function Navbar() {
           <ThemeToggle />
           <div className="hidden md:flex items-center space-x-3">
             <Button variant="ghost" size="sm">
-              Sign In
+              <Link href="/login">Log In</Link>
             </Button>
             <Button size="sm" className="bg-primary hover:bg-primary/90">
-              Get Started
+              <Link href="/signup">Get Started</Link>
             </Button>
           </div>
 

@@ -28,7 +28,7 @@ export default function Hero() {
           <div className="space-y-4">
             <Badge variant="secondary" className="w-fit px-4 py-2">
               <Star className="w-4 h-4 mr-2 fill-current text-yellow-500" />
-              Trusted by 10,000+ commuters
+              100% Cost Efficient
             </Badge>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight">
@@ -53,10 +53,7 @@ export default function Hero() {
               Find a Ride
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            <Button variant="outline" size="lg" className="text-lg px-8 py-6">
-              <Play className="mr-2 h-5 w-5" />
-              Watch Demo
-            </Button>
+            
           </div>
 
           {/* Quick Stats */}
@@ -98,7 +95,7 @@ export default function Hero() {
                   <div>
                     <h3 className="font-semibold">Today&apos;s Carpool</h3>
                     <p className="text-sm text-muted-foreground">
-                      Downtown → Tech Park
+                      Bennett → Noida
                     </p>
                   </div>
                 </div>
@@ -114,7 +111,7 @@ export default function Hero() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Cost per person</span>
-                    <span className="font-bold text-carpool-600">$8</span>
+                    <span className="font-bold text-carpool-600">₹120</span>
                   </div>
                 </div>
 

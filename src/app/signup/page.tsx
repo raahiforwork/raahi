@@ -28,6 +28,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 
 const signupSchema = z
   .object({
@@ -36,12 +37,9 @@ const signupSchema = z
     email: z
       .string()
       .email("Please enter a valid email address")
-      .refine(
-        (val) => val.split("@")[1]?.toLowerCase() === "bennett.edu.in",
-        {
-          message: "Only Bennett official email IDs are allowed",
-        }
-      ),
+      .refine((val) => val.split("@")[1]?.toLowerCase() === "bennett.edu.in", {
+        message: "Only Bennett official email IDs are allowed",
+      }),
     phone: z.string().min(10, "Please enter a valid phone number"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
@@ -62,8 +60,6 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -82,8 +78,6 @@ export default function SignupPage() {
 
   const onSubmit = async (data: SignupForm) => {
     setIsLoading(true);
-    setError(null);
-    setMessage(null);
 
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -105,18 +99,18 @@ export default function SignupPage() {
         createdAt: serverTimestamp(),
       });
 
-      setMessage(
-        "Account created! Please check your email to verify your account before logging in."
+      toast.success(
+        "Account created! Please verify your email before logging in."
       );
       reset();
     } catch (err: any) {
       const errorCode = err.code;
       if (errorCode === "auth/email-already-in-use") {
-        setError("This email is already in use.");
+        toast.error("This email is already in use.");
       } else if (errorCode === "auth/invalid-email") {
-        setError("Invalid email address.");
+        toast.error("Invalid email address.");
       } else {
-        setError("Something went wrong. Please try again.");
+        toast.error("Something went wrong. Please try again.");
       }
     } finally {
       setIsLoading(false);
@@ -155,58 +149,39 @@ export default function SignupPage() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {error && <p className="text-sm text-red-500">{error}</p>}
-            {message && <p className="text-sm text-green-500">{message}</p>}
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {/* First Name & Last Name */}
+            <form
+              onSubmit={handleSubmit(onSubmit, (formErrors) => {
+                const firstError = Object.values(formErrors)[0];
+                if (firstError?.message) {
+                  toast.error(firstError.message as string);
+                }
+              })}
+              className="space-y-4"
+            >
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>First Name</Label>
                   <Input placeholder="John" {...register("firstName")} />
-                  {errors.firstName && (
-                    <p className="text-xs text-red-500">
-                      {errors.firstName.message}
-                    </p>
-                  )}
                 </div>
                 <div>
                   <Label>Last Name</Label>
                   <Input placeholder="Doe" {...register("lastName")} />
-                  {errors.lastName && (
-                    <p className="text-xs text-red-500">
-                      {errors.lastName.message}
-                    </p>
-                  )}
                 </div>
               </div>
 
-              {/* Email */}
               <div>
                 <Label>Email</Label>
                 <Input
                   placeholder="john@bennett.edu.in"
                   {...register("email")}
                 />
-                {errors.email && (
-                  <p className="text-xs text-red-500">
-                    {errors.email.message}
-                  </p>
-                )}
               </div>
 
-              {/* Phone */}
               <div>
                 <Label>Phone Number</Label>
                 <Input placeholder="+91 98765 43210" {...register("phone")} />
-                {errors.phone && (
-                  <p className="text-xs text-red-500">
-                    {errors.phone.message}
-                  </p>
-                )}
               </div>
 
-              {/* Password */}
               <div>
                 <Label>Password</Label>
                 <div className="relative">
@@ -223,14 +198,8 @@ export default function SignupPage() {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </Button>
                 </div>
-                {errors.password && (
-                  <p className="text-xs text-red-500">
-                    {errors.password.message}
-                  </p>
-                )}
               </div>
 
-              {/* Confirm Password */}
               <div>
                 <Label>Confirm Password</Label>
                 <div className="relative">
@@ -242,7 +211,9 @@ export default function SignupPage() {
                     type="button"
                     variant="ghost"
                     className="absolute right-2 top-1"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    onClick={() =>
+                      setShowConfirmPassword(!showConfirmPassword)
+                    }
                   >
                     {showConfirmPassword ? (
                       <EyeOff size={16} />
@@ -251,14 +222,8 @@ export default function SignupPage() {
                     )}
                   </Button>
                 </div>
-                {errors.confirmPassword && (
-                  <p className="text-xs text-red-500">
-                    {errors.confirmPassword.message}
-                  </p>
-                )}
               </div>
 
-              {/* Terms & Conditions */}
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="agreeToTerms"
@@ -283,11 +248,6 @@ export default function SignupPage() {
                   </Link>
                 </Label>
               </div>
-              {errors.agreeToTerms && (
-                <p className="text-xs text-red-500">
-                  {errors.agreeToTerms.message}
-                </p>
-              )}
 
               <Button type="submit" disabled={isLoading} className="w-full">
                 {isLoading ? "Registering..." : "Create Account"}

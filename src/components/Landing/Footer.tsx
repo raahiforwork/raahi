@@ -79,10 +79,8 @@ export default function Footer() {
           {/* Brand column */}
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center space-x-2 mb-6">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-carpool-600">
-                <Car className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">Raahi</span>
+              <img src="/logo.png" alt="Raahi Logo" className="h-16 w-16 object-contain" />
+              <span className="text-2xl font-bold gradient-text">Raahi</span>
             </Link>
 
             <p className="text-gray-400 mb-6 max-w-md">
@@ -102,7 +100,7 @@ export default function Footer() {
               </div>
               <div className="flex items-center space-x-3">
                 <MapPin className="h-4 w-4 text-carpool-500" />
-                <span className="text-sm">San Francisco, CA</span>
+                <span className="text-sm">Noida</span>
               </div>
             </div>
           </div>

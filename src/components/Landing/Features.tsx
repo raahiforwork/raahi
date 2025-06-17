@@ -70,6 +70,27 @@ const features = [
   },
 ];
 
+// Reusable stat box
+const StatCard = ({
+  icon: Icon,
+  value,
+  label,
+  iconClass,
+}: {
+  icon: React.ElementType;
+  value: string;
+  label: string;
+  iconClass: string;
+}) => (
+  <div className="space-y-2">
+    <div className="flex items-center justify-center">
+      <Icon className={`h-5 w-5 ${iconClass} mr-2`} aria-hidden="true" />
+      <span className="text-2xl font-bold">{value}</span>
+    </div>
+    <p className="text-sm text-muted-foreground">{label}</p>
+  </div>
+);
+
 export default function Features() {
   return (
     <section id="features" className="py-24 bg-muted/50">
@@ -84,14 +105,21 @@ export default function Features() {
           </p>
         </div>
 
+        {/* Feature Cards */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => (
-            <Card key={index} className="card-hover border-0 shadow-md">
+            <Card
+              key={index}
+              className="transition-transform hover:scale-[1.03] hover:shadow-lg border-0 shadow-md"
+            >
               <CardHeader>
                 <div
                   className={`w-12 h-12 rounded-lg ${feature.bgColor} flex items-center justify-center mb-4`}
                 >
-                  <feature.icon className={`h-6 w-6 ${feature.color}`} />
+                  <feature.icon
+                    className={`h-6 w-6 ${feature.color}`}
+                    aria-hidden="true"
+                  />
                 </div>
                 <CardTitle className="text-xl">{feature.title}</CardTitle>
               </CardHeader>
@@ -104,37 +132,33 @@ export default function Features() {
           ))}
         </div>
 
-        {/* Additional highlights */}
+        {/* Stats Section */}
         <div className="mt-16 text-center">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="space-y-2">
-              <div className="flex items-center justify-center">
-                <Star className="h-5 w-5 text-yellow-500 fill-current" />
-                <span className="text-2xl font-bold ml-2">4.9</span>
-              </div>
-              <p className="text-sm text-muted-foreground">User Rating</p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-center">
-                <Smartphone className="h-5 w-5 text-primary mr-2" />
-                <span className="text-2xl font-bold">99%</span>
-              </div>
-              <p className="text-sm text-muted-foreground">Uptime</p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-center">
-                <Shield className="h-5 w-5 text-green-600 mr-2" />
-                <span className="text-2xl font-bold">100%</span>
-              </div>
-              <p className="text-sm text-muted-foreground">Verified Users</p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-center">
-                <Clock className="h-5 w-5 text-blue-600 mr-2" />
-                <span className="text-2xl font-bold">24/7</span>
-              </div>
-              <p className="text-sm text-muted-foreground">Support</p>
-            </div>
+            <StatCard
+              icon={Star}
+              value="4.9"
+              label="User Rating"
+              iconClass="text-yellow-500 fill-current"
+            />
+            <StatCard
+              icon={Smartphone}
+              value="99%"
+              label="Uptime"
+              iconClass="text-primary"
+            />
+            <StatCard
+              icon={Shield}
+              value="100%"
+              label="Verified Users"
+              iconClass="text-green-600"
+            />
+            <StatCard
+              icon={Clock}
+              value="24/7"
+              label="Support"
+              iconClass="text-blue-600"
+            />
           </div>
         </div>
       </div>

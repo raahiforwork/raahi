@@ -2,50 +2,50 @@
 
 import * as React from "react";
 import {
-  TrendingUp,
   Users,
   MapPin,
   DollarSign,
   Leaf,
   Clock,
+  Star,
 } from "lucide-react";
 
 const stats = [
   {
     icon: Users,
-    value: "10,000+",
-    label: "Active Users",
-    description: "Join our growing community",
+    value: "750+",
+    label: "Verified Students",
+    description: "Active on Raahi from Bennett",
   },
   {
     icon: MapPin,
-    value: "50+",
-    label: "Cities",
-    description: "Across the country",
+    value: "20+",
+    label: "Routes Covered",
+    description: "To Delhi NCR, Agra, Meerut & more",
   },
   {
     icon: DollarSign,
-    value: "$2M+",
-    label: "Money Saved",
-    description: "By our community",
+    value: "₹1.5L+",
+    label: "Saved in Fuel",
+    description: "By sharing rides within campus community",
   },
   {
     icon: Leaf,
-    value: "500T",
-    label: "CO₂ Reduced",
-    description: "Environmental impact",
+    value: "1.2T",
+    label: "CO₂ Saved",
+    description: "By reducing solo trips",
   },
   {
     icon: Clock,
-    value: "99.9%",
-    label: "On-Time Rate",
-    description: "Reliable transportation",
+    value: "97%",
+    label: "On-Time Matches",
+    description: "Coordinated, dependable rides",
   },
   {
-    icon: TrendingUp,
-    value: "4.9/5",
-    label: "User Rating",
-    description: "Customer satisfaction",
+    icon: Star,
+    value: "4.8/5",
+    label: "Student Rating",
+    description: "Based on peer feedback",
   },
 ];
 
@@ -62,14 +62,13 @@ export default function Stats() {
       <div className="container relative z-10">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-            Numbers That{" "}
+            Raahi’s Impact at{" "}
             <span className="bg-gradient-to-r from-carpool-400 to-white bg-clip-text text-transparent">
-              Matter
+              Bennett University
             </span>
           </h2>
           <p className="text-lg text-carpool-200 max-w-2xl mx-auto">
-            See the positive impact our community is making on wallets,
-            environment, and lives every single day.
+            Discover how Raahi is making commuting smarter, greener, and more affordable — just for Bennett students.
           </p>
         </div>
 
@@ -102,29 +101,29 @@ export default function Stats() {
           <div className="grid md:grid-cols-3 gap-8 text-center">
             <div>
               <div className="text-4xl font-bold text-carpool-400 mb-2">
-                1.2M
+                18K+
               </div>
-              <div className="text-carpool-300">Miles Shared</div>
+              <div className="text-carpool-300">KM Shared</div>
               <div className="text-sm text-carpool-500 mt-1">
-                Equivalent to 48 trips around Earth
+                From hostels to home, every weekend
               </div>
             </div>
             <div>
               <div className="text-4xl font-bold text-carpool-400 mb-2">
-                15K
+                320+
               </div>
-              <div className="text-carpool-300">Trees Saved</div>
+              <div className="text-carpool-300">Trips Scheduled</div>
               <div className="text-sm text-carpool-500 mt-1">
-                Through reduced emissions
+                With verified student profiles
               </div>
             </div>
             <div>
               <div className="text-4xl font-bold text-carpool-400 mb-2">
-                95%
+                93%
               </div>
               <div className="text-carpool-300">Would Recommend</div>
               <div className="text-sm text-carpool-500 mt-1">
-                To friends and family
+                To fellow Bennett friends
               </div>
             </div>
           </div>

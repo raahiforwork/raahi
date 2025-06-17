@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function CTA() {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <section className="py-24 relative overflow-hidden">
       {/* Background gradient */}
@@ -31,9 +37,7 @@ export default function CTA() {
                 </span>
               </h2>
               <p className="text-lg text-carpool-100 max-w-lg">
-                Join thousands of commuters who have already started saving
-                money, reducing their environmental impact, and building
-                meaningful connections.
+                Join fellow Bennett students and staff to save money, reduce your carbon footprint, and commute smarter together.
               </p>
             </div>
 
@@ -43,7 +47,7 @@ export default function CTA() {
                   <ArrowRight className="h-3 w-3 text-carpool-600" />
                 </div>
                 <span className="text-carpool-100">
-                  Free to join and start saving immediately
+                  Free to join using your Bennett ID
                 </span>
               </div>
               <div className="flex items-center space-x-3">
@@ -51,7 +55,7 @@ export default function CTA() {
                   <ArrowRight className="h-3 w-3 text-carpool-600" />
                 </div>
                 <span className="text-carpool-100">
-                  Verified users and secure payments
+                  Verified users within Bennett only
                 </span>
               </div>
               <div className="flex items-center space-x-3">
@@ -59,7 +63,7 @@ export default function CTA() {
                   <ArrowRight className="h-3 w-3 text-carpool-600" />
                 </div>
                 <span className="text-carpool-100">
-                  Available in 50+ cities nationwide
+                  Connect on a trusted university network
                 </span>
               </div>
             </div>
@@ -140,14 +144,17 @@ export default function CTA() {
               </CardContent>
             </Card>
 
-            {/* Floating badges */}
-            <div className="absolute -top-6 -left-6 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-medium shadow-lg animate-bounce">
-              #1 Carpool App
-            </div>
-
-            <div className="absolute -bottom-6 -right-6 bg-white text-carpool-700 px-3 py-1 rounded-full text-sm font-medium shadow-lg">
-              10K+ Downloads
-            </div>
+           
+            {mounted && (
+              <>
+                <div className="absolute -top-6 -left-6 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-medium shadow-lg animate-bounce">
+                  Bennett Trusted
+                </div>
+                <div className="absolute -bottom-6 -right-6 bg-white text-carpool-700 px-3 py-1 rounded-full text-sm font-medium shadow-lg">
+                  500+ Rides Shared
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

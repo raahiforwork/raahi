@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   title: "Raahi - Share the Journey, Save the Planet",
   description:
     "Connect with fellow commuters and make your daily journey more sustainable, affordable, and social with Raahi.",
+    icons: {
+    icon: "/favicon.ico",
+    },
 };
 
 export default function RootLayout({

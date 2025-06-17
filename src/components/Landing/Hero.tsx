@@ -13,6 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export default function Hero() {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
   return (
     <section className="relative min-h-screen flex items-center gradient-bg overflow-hidden">
       {/* Background decorations */}
@@ -24,11 +32,11 @@ export default function Hero() {
 
       <div className="container relative z-10 grid lg:grid-cols-2 gap-12 items-center py-20">
         {/* Content */}
-        <div className="space-y-8 animate-fade-in">
+        <div className="space-y-8">
           <div className="space-y-4">
             <Badge variant="secondary" className="w-fit px-4 py-2">
               <Star className="w-4 h-4 mr-2 fill-current text-yellow-500" />
-              100% Cost Efficient
+              Bennett Exclusive
             </Badge>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight">
@@ -38,9 +46,7 @@ export default function Hero() {
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl">
-              Connect with fellow commuters in your area. Make your daily
-              journey more sustainable, affordable, and social with CarPool
-              Connect.
+              Carpool with fellow Bennett students and staff. Save fuel, reduce traffic, and make new friends on every ride.
             </p>
           </div>
 
@@ -53,7 +59,6 @@ export default function Hero() {
               Find a Ride
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            
           </div>
 
           {/* Quick Stats */}
@@ -61,31 +66,30 @@ export default function Hero() {
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <Users className="h-5 w-5 text-primary mr-2" />
-                <span className="text-2xl font-bold">10K+</span>
+                <span className="text-2xl font-bold">1.2K+</span>
               </div>
-              <p className="text-sm text-muted-foreground">Active Users</p>
+              <p className="text-sm text-muted-foreground">Bennett Users</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <MapPin className="h-5 w-5 text-primary mr-2" />
-                <span className="text-2xl font-bold">50+</span>
+                <span className="text-2xl font-bold">25+</span>
               </div>
-              <p className="text-sm text-muted-foreground">Cities</p>
+              <p className="text-sm text-muted-foreground">Ride Routes</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <DollarSign className="h-5 w-5 text-primary mr-2" />
-                <span className="text-2xl font-bold">$2M+</span>
+                <span className="text-2xl font-bold">₹50K+</span>
               </div>
-              <p className="text-sm text-muted-foreground">Money Saved</p>
+              <p className="text-sm text-muted-foreground">Saved by Students</p>
             </div>
           </div>
         </div>
 
-        {/* Hero Image/Animation */}
-        <div className="relative animate-slide-in">
+        {/* Hero Card */}
+        <div className="relative">
           <div className="relative">
-            {/* Main card */}
             <div className="glass-effect rounded-2xl p-8 transform rotate-3 hover:rotate-0 transition-transform duration-500">
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6">
                 <div className="flex items-center space-x-4 mb-6">
@@ -93,9 +97,9 @@ export default function Hero() {
                     <Users className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">Today&apos;s Carpool</h3>
+                    <h3 className="font-semibold">Today&apos;s Ride</h3>
                     <p className="text-sm text-muted-foreground">
-                      Bennett → Noida
+                      Bennett → Greater Noida
                     </p>
                   </div>
                 </div>
@@ -103,15 +107,15 @@ export default function Hero() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Departure</span>
-                    <span className="font-medium">8:30 AM</span>
+                    <span className="font-medium">8:00 AM</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Available Seats</span>
-                    <span className="font-medium text-carpool-600">3/4</span>
+                    <span className="font-medium text-carpool-600">2/4</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Cost per person</span>
-                    <span className="font-bold text-carpool-600">₹120</span>
+                    <span className="font-bold text-carpool-600">₹100</span>
                   </div>
                 </div>
 
@@ -121,7 +125,6 @@ export default function Hero() {
               </div>
             </div>
 
-            {/* Floating elements */}
             <div className="absolute -top-4 -right-4 bg-carpool-500 text-white rounded-full p-3 shadow-lg animate-bounce">
               <Star className="h-5 w-5 fill-current" />
             </div>

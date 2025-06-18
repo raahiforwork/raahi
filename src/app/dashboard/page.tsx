@@ -1,5 +1,7 @@
 "use client";
 
+import Link from 'next/link';
+
 import React, { useEffect, useState, useCallback } from "react";
 import {
   FaBell,
@@ -310,7 +312,7 @@ export default function DashboardPage() {
               <FaSearch className="text-black text-xl" />
             </div>
             <h3 className="font-semibold text-gray-900 text-lg">Find a Ride</h3>
-            <p className="text-sm text-gray-600 mt-1">Join someone's journey</p>
+            <p className="text-sm text-gray-600 mt-1">Join someones journey</p>
             <div className="mt-4 inline-block text-black font-medium text-sm bg-green-100 rounded-2xl p-3 hover:bg-green-500">
               <span>Search Now</span>
               <FaArrowRight className="inline ml-1" />
@@ -585,7 +587,7 @@ export default function DashboardPage() {
         <div className="card p-6 mt-6 mb-8">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-gray-900">
-              Today's Rides
+              Todays Rides
             </h2>
           </div>
           <div>
@@ -692,13 +694,12 @@ export default function DashboardPage() {
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40">
         <div className="flex justify-around items-center h-16">
-          <a
-            href="/"
-            className="bottom-nav-item active flex flex-col items-center text-sm text-black hover:bg-green-200 p-3 rounded-4xl"
-          >
-            <FaHome className="text-xl mb-1" />
-            <span>Home</span>
-          </a>
+         <Link href="/" passHref>
+  <a className="bottom-nav-item active flex flex-col items-center text-sm text-black hover:bg-green-200 p-3 rounded-4xl">
+    <FaHome className="text-xl mb-1" />
+    <span>Home</span>
+  </a>
+</Link>
           <a
             href="/find"
             className="bottom-nav-item flex flex-col items-center text-sm text-black hover:bg-green-200 p-3 rounded-4xl"
@@ -753,7 +754,7 @@ export default function DashboardPage() {
                   <FaBell className="empty-state-icon mx-auto text-3xl text-gray-400 mb-2" />
                   <p className="empty-state-text">No new notifications</p>
                   <p className="empty-state-subtext text-gray-500">
-                    We'll notify you when there's activity
+                    We ll notify you when theres activity
                   </p>
                 </div>
               ) : (

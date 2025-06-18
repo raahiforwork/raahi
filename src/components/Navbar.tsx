@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import * as React from "react";
 import Link from "next/link";
 import { Menu, X, Car } from "lucide-react";
@@ -22,10 +23,12 @@ export default function Navbar() {
       <nav className="container flex h-16 items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
-          <img
+          <Image
             src="/logo.png"
             alt="Raahi Logo"
-            className="h-12 w-12 object-fill"
+            width={48} // h-12 = 48px
+            height={48} // w-12 = 48px
+            className="object-fill"
           />
           <span className="text-xl font-bold gradient-text">Raahi</span>
         </Link>

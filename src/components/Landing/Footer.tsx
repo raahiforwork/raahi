@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import * as React from "react";
 import Link from "next/link";
 import {
@@ -46,7 +48,6 @@ const socialLinks = [
 export default function Footer() {
   return (
     <footer className="bg-gray-900 text-gray-300">
-     
       {/* <div className="border-b border-gray-800">
         <div className="container py-12">
           <div className="grid md:grid-cols-2 gap-8 items-center">
@@ -79,7 +80,13 @@ export default function Footer() {
           {/* Brand column */}
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center space-x-2 mb-6">
-              <img src="/logo.png" alt="Raahi Logo" className="h-16 w-16 object-contain" />
+              <Image
+                src="/logo.png"
+                alt="Raahi Logo"
+                width={64} // Tailwind h-16/w-16 = 64px
+                height={64}
+                className="object-contain"
+              />
               <span className="text-2xl font-bold gradient-text">Raahi</span>
             </Link>
 

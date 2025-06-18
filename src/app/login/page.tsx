@@ -1,5 +1,7 @@
 "use client";
 
+import Image from 'next/image';
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -106,7 +108,7 @@ export default function LoginPage() {
         <Card className="border border-border/50 shadow-2xl bg-card/80 backdrop-blur">
           <CardHeader className="text-center space-y-4">
             <Link href="/" className="flex flex-col items-center space-y-2">
-              <img src="/logo.png" alt="Raahi Logo" className="h-16 w-16 object-contain" />
+              <Image src="/assets/logo.png" alt="Raahi Logo" width={120} height={40} />
               <span className="text-2xl font-bold gradient-text">Raahi</span>
             </Link>
             <div>

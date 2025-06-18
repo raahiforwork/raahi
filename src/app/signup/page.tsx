@@ -1,5 +1,7 @@
 "use client";
 
+import Image from 'next/image';
+
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { auth, db } from "@/lib/firebase";
@@ -134,11 +136,13 @@ export default function SignupPage() {
         <Card className="border shadow-lg bg-card/80 backdrop-blur">
           <CardHeader className="text-center space-y-2">
             <div className="flex flex-col items-center text-center space-y-4">
-              <img
-                src="/logo.png"
-                alt="Raahi Logo"
-                className="h-16 w-16 object-contain"
-              />
+              <Image
+  src="/logo.png"
+  alt="Raahi Logo"
+  width={64}  
+  height={64}
+  className="object-contain rounded" 
+/>
               <CardTitle className="text-2xl font-bold gradient-text">
                 Join Raahi
               </CardTitle>

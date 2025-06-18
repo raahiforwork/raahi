@@ -694,12 +694,12 @@ export default function DashboardPage() {
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40">
         <div className="flex justify-around items-center h-16">
-         <Link href="/" passHref>
+         {/* <Link href="/" passHref> */}
   <a className="bottom-nav-item active flex flex-col items-center text-sm text-black hover:bg-green-200 p-3 rounded-4xl">
     <FaHome className="text-xl mb-1" />
     <span>Home</span>
   </a>
-</Link>
+{/* </Link> */}
           <a
             href="/find"
             className="bottom-nav-item flex flex-col items-center text-sm text-black hover:bg-green-200 p-3 rounded-4xl"

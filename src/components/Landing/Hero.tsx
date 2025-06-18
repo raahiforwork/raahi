@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { L } from "vitest/dist/chunks/reporters.d.C-cu31ET.js";
 
 export default function Hero() {
   const [mounted, setMounted] = React.useState(false);
@@ -56,7 +58,8 @@ export default function Hero() {
               size="lg"
               className="bg-primary hover:bg-primary/90 text-lg px-8 py-6"
             >
-              Find a Ride
+              <Link href="/login" className="flex items-center">
+              Find a Ride</Link>
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </div>
@@ -120,7 +123,8 @@ export default function Hero() {
                 </div>
 
                 <Button className="w-full mt-6 bg-carpool-600 hover:bg-carpool-700">
-                  Join Ride
+                  <Link href="/login" className="flex items-center">
+                  Join Ride</Link>
                 </Button>
               </div>
             </div>

@@ -108,7 +108,7 @@ export default function LoginPage() {
         <Card className="border border-border/50 shadow-2xl bg-card/80 backdrop-blur">
           <CardHeader className="text-center space-y-4">
             <Link href="/" className="flex flex-col items-center space-y-2">
-              <Image src="/assets/logo.png" alt="Raahi Logo" width={120} height={40} />
+              <Image src="/logo.png" alt="Raahi Logo" width={80} height={40} />
               <span className="text-2xl font-bold gradient-text">Raahi</span>
             </Link>
             <div>

@@ -1,6 +1,6 @@
 "use client";
 
-import Image from 'next/image';
+import Image from "next/image";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -85,7 +85,7 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         data.email,
-        data.password
+        data.password,
       );
 
       const user = userCredential.user;
@@ -102,7 +102,7 @@ export default function SignupPage() {
       });
 
       toast.success(
-        "Account created! Please verify your email before logging in."
+        "Account created! Please verify your email before logging in.",
       );
       reset();
     } catch (err: any) {
@@ -137,12 +137,12 @@ export default function SignupPage() {
           <CardHeader className="text-center space-y-2">
             <div className="flex flex-col items-center text-center space-y-4">
               <Image
-  src="/logo.png"
-  alt="Raahi Logo"
-  width={64}  
-  height={64}
-  className="object-contain rounded" 
-/>
+                src="/logo.png"
+                alt="Raahi Logo"
+                width={64}
+                height={64}
+                className="object-contain rounded"
+              />
               <CardTitle className="text-2xl font-bold gradient-text">
                 Join Raahi
               </CardTitle>
@@ -215,9 +215,7 @@ export default function SignupPage() {
                     type="button"
                     variant="ghost"
                     className="absolute right-2 top-1"
-                    onClick={() =>
-                      setShowConfirmPassword(!showConfirmPassword)
-                    }
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? (
                       <EyeOff size={16} />

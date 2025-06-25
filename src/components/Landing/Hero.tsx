@@ -12,10 +12,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { L } from "vitest/dist/chunks/reporters.d.C-cu31ET.js";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Hero() {
   const [mounted, setMounted] = React.useState(false);
+  const { user } = useAuth();
+  const router = useRouter();
+
+  const handleClick = () => {
+    if (user) {
+      router.push("/dashboard/find");
+    } else {
+      router.push("/login");
+    }
+  };
 
   React.useEffect(() => {
     setMounted(true);
@@ -48,7 +59,8 @@ export default function Hero() {
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl">
-              Carpool with fellow Bennett students and staff. Save fuel, reduce traffic, and make new friends on every ride.
+              Carpool with fellow Bennett students and staff. Save fuel, reduce
+              traffic, and make new friends on every ride.
             </p>
           </div>
 
@@ -56,11 +68,13 @@ export default function Hero() {
           <div className="flex flex-col sm:flex-row gap-4">
             <Button
               size="lg"
+              onClick={handleClick}
               className="bg-primary hover:bg-primary/90 text-lg px-8 py-6"
             >
-              <Link href="/login" className="flex items-center">
-              Find a Ride</Link>
-              <ArrowRight className="ml-2 h-5 w-5" />
+              <span className="flex items-center">
+                Find a Ride
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </span>
             </Button>
           </div>
 
@@ -124,7 +138,8 @@ export default function Hero() {
 
                 <Button className="w-full mt-6 bg-carpool-600 hover:bg-carpool-700">
                   <Link href="/login" className="flex items-center">
-                  Join Ride</Link>
+                    Join Ride
+                  </Link>
                 </Button>
               </div>
             </div>

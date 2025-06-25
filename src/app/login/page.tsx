@@ -1,14 +1,11 @@
 "use client";
 
-import Image from 'next/image';
+import Image from "next/image";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  signInWithEmailAndPassword,
-  signOut,
-} from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useForm } from "react-hook-form";
@@ -56,7 +53,7 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(
         auth,
         data.email,
-        data.password
+        data.password,
       );
 
       const user = userCredential.user;
@@ -97,7 +94,10 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-grid-slate-100 dark:bg-grid-slate-700/25 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:[mask-image:linear-gradient(0deg,rgba(255,255,255,0.1),rgba(255,255,255,0.5))]" />
 
       <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
-        <Link href="/" className="flex items-center space-x-2 text-sm hover:text-primary transition-colors">
+        <Link
+          href="/"
+          className="flex items-center space-x-2 text-sm hover:text-primary transition-colors"
+        >
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Home</span>
         </Link>
@@ -143,7 +143,10 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm text-primary hover:underline"
+                  >
                     Forgot password?
                   </Link>
                 </div>
@@ -177,7 +180,12 @@ export default function LoginPage() {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
+                disabled={isLoading}
+              >
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
             </form>
@@ -186,7 +194,10 @@ export default function LoginPage() {
           <CardFooter className="text-center">
             <p className="text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
-              <Link href="/signup" className="text-primary font-medium hover:underline">
+              <Link
+                href="/signup"
+                className="text-primary font-medium hover:underline"
+              >
                 Sign up
               </Link>
             </p>

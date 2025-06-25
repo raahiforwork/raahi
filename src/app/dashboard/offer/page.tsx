@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { GoogleMap, DirectionsRenderer } from "@react-google-maps/api";
-import { useLoadScript, type Library } from "@react-google-maps/api";
+import { useLoadScript } from "@react-google-maps/api";
+import { useAuth } from "@/context/AuthContext";
+import BottomNav from "@/components/BottomNav";
 import {
   FaCar,
   FaSearch,
@@ -19,6 +21,7 @@ import {
 import { main } from "framer-motion/client";
 import { Nunito } from "next/font/google";
 import InnerNavbar from "@/components/InnerNavbar";
+import { useRouter } from "next/navigation";
 
 const libraries: Array<"places"> = ["places"];
 
@@ -148,9 +151,20 @@ export default function FindRidePage() {
     }, 1000);
   };
 
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  
+    useEffect(() => {
+      if (!authLoading && !user) {
+        router.push("/login");
+      }
+    }, [user, authLoading, router]);
+
   if (loadError) return <div>Error loading maps</div>;
   if (!isLoaded) return <div>Loading Maps...</div>;
-
+  if (authLoading || !user) {
+    return <div>Loading...</div>; // auth still resolving
+  }
   return (
     <main className={`bg-gray-50  ${nunito.className}`}>
       <InnerNavbar />
@@ -469,47 +483,7 @@ export default function FindRidePage() {
           </button>
           {formError && <p className="error-message text-center text-red-600">{formError}</p>}
         </div>
-
-        {/* Bottom Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40">
-          <div className="flex justify-around items-center h-16">
-            <a className="bottom-nav-item active flex flex-col items-center text-sm text-black hover:bg-green-200 p-3 rounded-full">
-              <FaHome className="text-xl mb-1" />
-              <span>Home</span>
-            </a>
-            {/* </Link> */}
-            <a
-              href="/dashboard/find"
-              className="bottom-nav-item flex flex-col items-center text-sm text-black hover:bg-green-200 p-3 rounded-full"
-            >
-              <FaSearch className="text-xl mb-1 " />
-              <span>Find</span>
-            </a>
-            <a
-              href="/dashboard/offer"
-              className="bottom-nav-item flex flex-col items-center text-sm text-black relative bg-green-500"
-            >
-              <div className="absolute -top-4 w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-lg border-4 hover:border-black border-white bg-green-500 hover:bg-green-400">
-                <FaPlus className="text-black text-lg" />
-              </div>
-              <FaCar className="text-xl mb-1" />
-            </a>
-            <a
-              href="/rides"
-              className="bottom-nav-item flex flex-col items-center text-sm text-black hover:bg-green-200 p-3 rounded-full"
-            >
-              <FaCar className="text-xl mb-1" />
-              <span>My Rides</span>
-            </a>
-            <a
-              href="/profile"
-              className="bottom-nav-item flex flex-col items-center text-sm text-black hover:bg-green-200 p-3 rounded-full"
-            >
-              <FaUserCircle className="text-xl mb-1" />
-              <span>Profile</span>
-            </a>
-          </div>
-        </nav>
+        <BottomNav/ >
     </main>
   );
 }

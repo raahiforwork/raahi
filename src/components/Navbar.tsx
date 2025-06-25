@@ -3,10 +3,12 @@
 import Image from "next/image";
 import * as React from "react";
 import Link from "next/link";
-import { Menu, X, Car } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import ThemeToggle from "./ThemeToggle";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const navigation = [
   { name: "How it Works", href: "#how-it-works" },
@@ -17,6 +19,24 @@ const navigation = [
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = React.useState(false);
+  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsLoggedIn(!!user);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      console.log('Logged out');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -26,8 +46,8 @@ export default function Navbar() {
           <Image
             src="/logo.png"
             alt="Raahi Logo"
-            width={48} // h-12 = 48px
-            height={48} // w-12 = 48px
+            width={48}
+            height={48}
             className="object-fill"
           />
           <span className="text-xl font-bold gradient-text">Raahi</span>
@@ -50,12 +70,20 @@ export default function Navbar() {
         <div className="flex items-center space-x-3">
           <ThemeToggle />
           <div className="hidden md:flex items-center space-x-3">
-            <Button variant="ghost" size="sm">
-              <Link href="/login">Log In</Link>
-            </Button>
-            <Button size="sm" className="bg-primary hover:bg-primary/90">
-              <Link href="/signup">Get Started</Link>
-            </Button>
+            {isLoggedIn ? (
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                Log Out
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm">
+                  <Link href="/login">Log In</Link>
+                </Button>
+                <Button size="sm" className="bg-primary hover:bg-primary/90">
+                  <Link href="/signup">Get Started</Link>
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile menu */}
@@ -78,11 +106,22 @@ export default function Navbar() {
                     {item.name}
                   </Link>
                 ))}
+
                 <div className="flex flex-col space-y-3 pt-6 border-t">
-                  <Button variant="ghost">Sign In</Button>
-                  <Button className="bg-primary hover:bg-primary/90">
-                    Get Started
-                  </Button>
+                  {isLoggedIn ? (
+                    <Button variant="ghost" onClick={handleLogout}>
+                      Log Out
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="ghost">
+                        <Link href="/login">Sign In</Link>
+                      </Button>
+                      <Button className="bg-primary hover:bg-primary/90">
+                        <Link href="/signup">Get Started</Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </SheetContent>

@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { MagicCard } from "@/components/magicui/magic-card";
 
 export default function Hero() {
   const [mounted, setMounted] = React.useState(false);
@@ -107,7 +108,8 @@ export default function Hero() {
         {/* Hero Card */}
         <div className="relative">
           <div className="relative">
-            <div className="glass-effect rounded-2xl p-8 transform rotate-3 hover:rotate-0 transition-transform duration-500">
+        <MagicCard>
+            <div className="glass-effect rounded-2xl p-8 transform transition-transform duration-500">
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6">
                 <div className="flex items-center space-x-4 mb-6">
                   <div className="w-12 h-12 bg-gradient-to-r from-carpool-500 to-carpool-600 rounded-full flex items-center justify-center">
@@ -143,6 +145,7 @@ export default function Hero() {
                 </Button>
               </div>
             </div>
+        </MagicCard>
 
             <div className="absolute -top-4 -right-4 bg-carpool-500 text-white rounded-full p-3 shadow-lg animate-bounce">
               <Star className="h-5 w-5 fill-current" />

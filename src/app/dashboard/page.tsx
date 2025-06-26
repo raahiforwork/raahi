@@ -549,7 +549,7 @@ export default function DashboardPage() {
                   <FaRoute className="text-green-600 group-hover:text-white" />
                 </div>
               </div>
-              <p className="stat-value text-2xl font-bold">{totalRides}</p>
+              <p className="stat-value text-2xl font-bold text-gray-700">{totalRides}</p>
               <div className="flex items-center mt-1">
                 <p className="stat-label text-xs text-gray-500">Last 30 days</p>
                 <span

@@ -2,8 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { GoogleMap, DirectionsRenderer } from "@react-google-maps/api";
-import { useLoadScript } from "@react-google-maps/api";
+import { GoogleMap, useLoadScript, DirectionsRenderer, Autocomplete } from "@react-google-maps/api";
 import {
   FaCar,
   FaSearch,
@@ -39,10 +38,22 @@ export default function FindRidePage() {
     libraries,
   });
 
+  const startingPointRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const destinationRef = useRef<google.maps.places.Autocomplete | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
 
   const onMapLoad = (map: google.maps.Map) => {
     mapRef.current = map;
+  };
+
+  const onPlaceChanged = (
+    ref: React.MutableRefObject<google.maps.places.Autocomplete | null>,
+    setter: (val: string) => void
+  ) => {
+    const place = ref.current?.getPlace();
+    if (place?.formatted_address) {
+      setter(place.formatted_address);
+    }
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -67,26 +78,28 @@ export default function FindRidePage() {
       setSearchResults(dummyRides);
       setLoading(false);
 
-      // Show directions on map
+      // Request directions
       if (window.google && mapRef.current) {
-        const directionsService = new window.google.maps.DirectionsService();
+        const directionsService = new google.maps.DirectionsService();
         directionsService.route(
           {
             origin: startingPoint,
             destination: destination,
-            travelMode: window.google.maps.TravelMode.DRIVING,
+            travelMode: google.maps.TravelMode.DRIVING,
           },
           (result, status) => {
-            if (status === window.google.maps.DirectionsStatus.OK) {
+            if (status === google.maps.DirectionsStatus.OK) {
               setDirections(result);
             } else {
+              console.error("Failed to fetch directions:", status);
               setDirections(null);
             }
-          },
+          }
         );
       }
-    }, 1200);
+    }, 1000);
   };
+
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -98,70 +111,70 @@ export default function FindRidePage() {
 
   if (loadError) return <div>Error loading maps</div>;
   if (!isLoaded) return <div>Loading Maps...</div>;
-  if (authLoading || !user) {
-    return <div>Loading...</div>; // auth still resolving
-  }
+  if (authLoading || !user) return <div>Loading...</div>;
+
   return (
-    <main className={`bg-gray-50  ${nunito.className}`}>
+    <main className={`bg-gray-50 ${nunito.className}`}>
       <InnerNavbar />
       <div className="container mx-auto px-4 py-6 text-black mt-18">
         <h1 className="text-2xl font-bold mt-14">Find a Ride</h1>
         <p className="mb-2 text-sm text-gray-700">Search for available rides</p>
+
         <form onSubmit={handleSearch} className="space-y-6">
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold mb-4">Route Details</h2>
             <div className="space-y-4">
-              {/* Pickup Location */}
+              {/* Pickup */}
               <div className="relative">
-                <label
-                  htmlFor="startingPoint"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Pickup Location
                 </label>
                 <FaCircle className="text-green-500 absolute left-3 top-10 text-xs pointer-events-none" />
-                <input
-                  type="text"
-                  id="startingPoint"
-                  value={startingPoint}
-                  onChange={(e) => setStartingPoint(e.target.value)}
-                  placeholder="Where are you starting from?"
-                  required
-                  className="pl-10 block w-full rounded-lg bg-white border-gray-300 border p-2.5 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                />
-              </div>
-              {/* Drop Location */}
-              <div className="relative">
-                <label
-                  htmlFor="destination"
-                  className="block text-sm font-medium text-gray-700 mb-2"
+                <Autocomplete
+                  onLoad={(ref) => (startingPointRef.current = ref)}
+                  onPlaceChanged={() =>
+                    onPlaceChanged(startingPointRef, setStartingPoint)
+                  }
                 >
+                  <input
+                    type="text"
+                    placeholder="Where are you starting from?"
+                    required
+                    className="pl-10 block w-full rounded-lg bg-white border-gray-300 border p-2.5 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                </Autocomplete>
+              </div>
+
+              {/* Destination */}
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Drop Location
                 </label>
                 <FaMapMarkerAlt className="text-red-500 absolute left-3 top-10 text-xs pointer-events-none" />
-                <input
-                  type="text"
-                  id="destination"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  placeholder="Where are you going?"
-                  required
-                  className="pl-10 block w-full rounded-lg bg-white border-gray-300 border p-2.5 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                />
+                <Autocomplete
+                  onLoad={(ref) => (destinationRef.current = ref)}
+                  onPlaceChanged={() =>
+                    onPlaceChanged(destinationRef, setDestination)
+                  }
+                >
+                  <input
+                    type="text"
+                    placeholder="Where are you going?"
+                    required
+                    className="pl-10 block w-full rounded-lg bg-white border-gray-300 border p-2.5 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                </Autocomplete>
               </div>
+
               {/* Date & Time */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
-                  <label
-                    htmlFor="date"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Date
                   </label>
-                  <FaCalendarAlt className="text-gray-400 absolute left-3 top-10 text-xs pointer-events-none" />
+                  <FaCalendarAlt className="text-gray-400 absolute left-3 top-11 text-xs pointer-events-none" />
                   <input
                     type="date"
-                    id="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     required
@@ -169,16 +182,12 @@ export default function FindRidePage() {
                   />
                 </div>
                 <div className="relative">
-                  <label
-                    htmlFor="time"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Time
                   </label>
-                  <FaClock className="text-gray-400 absolute left-3 top-10 text-xs pointer-events-none" />
+                  <FaClock className="text-gray-400 absolute left-3 top-[46px] text-xs pointer-events-none" />
                   <input
                     type="time"
-                    id="time"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
                     required
@@ -188,7 +197,7 @@ export default function FindRidePage() {
               </div>
             </div>
           </div>
-          {/* Search Button */}
+
           <button
             type="submit"
             className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition duration-200 flex items-center justify-center"
@@ -200,6 +209,7 @@ export default function FindRidePage() {
             )}
           </button>
         </form>
+
         {/* Results */}
         <div className="mt-6 space-y-4">
           {searchResults.length === 0 && !loading && (
@@ -237,20 +247,18 @@ export default function FindRidePage() {
                     </p>
                   </div>
                 </div>
-                <p className="text-lg font-bold text-green-600">
-                  ₹{ride.price}
-                </p>
+                <p className="text-lg font-bold text-green-600">₹{ride.price}</p>
               </div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center text-sm text-gray-500">
+              <div className="flex items-center justify-between mb-4 text-sm text-gray-500">
+                <div>
                   <FaCalendarAlt className="mr-2 inline" />
                   {new Date(ride.date).toLocaleDateString()}
                 </div>
-                <div className="flex items-center text-sm text-gray-500">
+                <div>
                   <FaClock className="mr-2 inline" />
                   {ride.time}
                 </div>
-                <div className="flex items-center text-sm text-gray-500">
+                <div>
                   <FaUser className="mr-2 inline" />
                   {ride.availableSeats} seats left
                 </div>
@@ -264,6 +272,7 @@ export default function FindRidePage() {
             </div>
           ))}
         </div>
+
         {/* Google Map */}
         <div
           style={{ height: "300px", width: "100%", borderRadius: "8px" }}
@@ -278,7 +287,8 @@ export default function FindRidePage() {
             {directions && <DirectionsRenderer directions={directions} />}
           </GoogleMap>
         </div>
-       <BottomNav/ >
+
+        <BottomNav />
       </div>
     </main>
   );

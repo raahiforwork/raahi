@@ -9,6 +9,7 @@ import {
   Marker,
   Autocomplete,
 } from "@react-google-maps/api";
+import { Loader } from "@googlemaps/js-api-loader";
 import {
   Plus,
   Search,
@@ -46,6 +47,19 @@ import { toast } from "sonner";
 import InnerNavbar from "@/components/InnerNavbar";
 import { Nunito } from "next/font/google";
 import { useRouter } from "next/navigation";
+import {
+  collection,
+  doc,
+  setDoc,
+  deleteDoc,
+  getDocs,
+  addDoc,
+  query,
+  where,
+  limit,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const libraries = ["places"];
 const nunito = Nunito({ subsets: ["latin"], weight: ["400", "700"] });
@@ -271,13 +285,56 @@ function RideMapWrapper({
   );
 }
 
+export async function getEstimatedArrivalTime(
+  from: string,
+  to: string,
+  departure: Date,
+): Promise<string> {
+  const loader = new Loader({
+    apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+    libraries: ["places"],
+  });
+
+  await loader.load();
+
+  const directionsService = new google.maps.DirectionsService();
+
+  return new Promise((resolve, reject) => {
+    directionsService.route(
+      {
+        origin: from,
+        destination: to,
+        travelMode: google.maps.TravelMode.DRIVING,
+        drivingOptions: {
+          departureTime: departure,
+        },
+      },
+      (result, status) => {
+        if (status === "OK" && result?.routes?.[0]?.legs?.[0]) {
+          const leg = result.routes[0].legs[0];
+          const arrivalTime = leg.arrival_time;
+
+          if (arrivalTime) {
+            resolve(arrivalTime.text); // example: "3:45 PM"
+          } else {
+            resolve("Unknown");
+          }
+        } else {
+          console.warn("Google Directions API error:", status, result);
+          resolve("Unknown");
+        }
+      },
+    );
+  });
+}
+
 export default function ModernDashboard() {
   const [searchFrom, setSearchFrom] = useState("");
   const [searchTo, setSearchTo] = useState("");
   const [selectedDate, setSelectedDate] = useState("today");
   const [activeTab, setActiveTab] = useState("find-rides");
   const [bookingLoading, setBookingLoading] = useState(null);
-  const [createdRides, setCreatedRides] = useState([]);
+  const [createdRide, setCreatedRide] = useState(null);
   const [createRideForm, setCreateRideForm] = useState({
     from: "",
     to: "",
@@ -285,7 +342,6 @@ export default function ModernDashboard() {
     time: "",
     seats: "",
     price: "",
-    carModel: "",
     preferences: {
       noSmoking: false,
       musicOk: false,
@@ -333,26 +389,43 @@ export default function ModernDashboard() {
   }, [user, authLoading, router]);
 
   const allAvailableRides = useMemo(() => {
-    return [...availableRides, ...createdRides];
-  }, [createdRides]);
+    return [...availableRides, ...(createdRide ? [createdRide] : [])];
+  }, [availableRides, createdRide]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchActiveRide = async () => {
+      const q = query(
+        collection(db, "rides"),
+        where("userId", "==", user.uid),
+        where("status", "==", "active"),
+        limit(1),
+      );
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const rideDoc = querySnapshot.docs[0];
+        setCreatedRide({ id: rideDoc.id, ...rideDoc.data() });
+      } else {
+        setCreatedRide(null); // No active ride
+      }
+    };
+
+    fetchActiveRide();
+  }, [user]);
 
   const filteredRides = useMemo(() => {
     return allAvailableRides.filter((ride) => {
-      const fromMatch = searchFrom
-        ? ride.route.from.toLowerCase().includes(searchFrom.toLowerCase())
-        : true;
-      const toMatch = searchTo
-        ? ride.route.to.toLowerCase().includes(searchTo.toLowerCase())
-        : true;
       const dateMatch =
         selectedDate === "today"
-          ? ride.route.date === "Today"
+          ? ride.route?.date === "Today"
           : selectedDate === "tomorrow"
-            ? ride.route.date === "Tomorrow"
+            ? ride.route?.date === "Tomorrow"
             : true;
-      return fromMatch && toMatch && dateMatch;
+
+      return dateMatch;
     });
-  }, [searchFrom, searchTo, selectedDate, allAvailableRides]);
+  }, [allAvailableRides, selectedDate]);
 
   const mockUser = {
     firstName: "John",
@@ -374,6 +447,24 @@ export default function ModernDashboard() {
     }
   };
 
+  const normalizedRide = useMemo(() => {
+    if (!createdRide) return null;
+
+    return {
+      id: createdRide.id,
+      from: createdRide.from,
+      to: createdRide.to,
+      date: createdRide.date,
+      time: createdRide.time,
+      price: createdRide.price,
+      createdByName: createdRide.createdByName,
+      preferences: createdRide.preferences || [],
+      availableSeats: createdRide.availableSeats,
+      totalSeats: createdRide.totalSeats,
+      status: createdRide.status,
+    };
+  }, [createdRide]);
+
   const handleCreateRide = async () => {
     if (
       !createRideForm.from ||
@@ -384,40 +475,28 @@ export default function ModernDashboard() {
       toast.error("Please fill in all required fields");
       return;
     }
-    setIsCreatingRide(true);
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      const newRide = {
-        id: Date.now(),
-        driver: {
-          name: `${mockUser.firstName} ${mockUser.lastName}`,
-          avatar: "/placeholder.svg",
-          rating: 4.8,
-          ridesCompleted: 5,
-          verified: true,
-        },
-        route: {
-          from: createRideForm.from,
-          to: createRideForm.to,
-          fromTime: createRideForm.time,
-          toTime: calculateArrivalTime(createRideForm.time),
-          date: formatDate(createRideForm.date),
-        },
-        availableSeats: parseInt(createRideForm.seats) || 3,
-        totalSeats: parseInt(createRideForm.seats) || 3,
-        price: parseInt(createRideForm.price) || 300,
-        preferences: getSelectedPreferences(),
-        distance: "45 km",
-        duration: "1h 15m",
-        features: ["AC", "Music"],
+      const rideData = {
+        ...createRideForm,
+        createdAt: serverTimestamp(),
+        userId: user.uid,
+        createdBy: user.uid,
+        createdByName: user.displayName || "Anonymous",
+        status: "active",
+        availableSeats: parseInt(createRideForm.seats),
+        totalSeats: parseInt(createRideForm.seats),
+        preferences: Object.entries(createRideForm.preferences)
+          .filter(([_, value]) => value)
+          .map(([key]) => key), // Store preferences as an array of active ones
       };
-      setCreatedRides((prev) => [newRide, ...prev]);
-      toast.success(
-        `Ride created successfully from ${createRideForm.from} to ${createRideForm.to}!`,
-      );
-      toast.info(
-        "Your ride is now available for others to book in the Find Rides section.",
-      );
+
+      const docRef = await addDoc(collection(db, "rides"), rideData);
+
+      const createdDoc = await getDoc(docRef);
+      setCreatedRide({ id: createdDoc.id, ...createdDoc.data() });
+
+      toast.success("Ride created successfully!");
       setCreateRideForm({
         from: "",
         to: "",
@@ -433,27 +512,65 @@ export default function ModernDashboard() {
         },
       });
     } catch (error) {
-      toast.error("Failed to create ride. Please try again.");
-    } finally {
-      setIsCreatingRide(false);
+      console.error("Error adding document: ", error);
+      toast.error("Failed to create ride.");
     }
   };
 
-  function calculateArrivalTime(startTime) {
-    if (!startTime) return "9:15 AM";
-    const [hours, minutes] = startTime.split(":");
-    const startHour = parseInt(hours);
-    const arrivalHour = (startHour + 1) % 24;
-    return `${arrivalHour}:${minutes}`;
-  }
+  const handleCancelRide = async () => {
+    if (!createdRide || !createdRide.id || !user) return;
 
-  function formatDate(dateStr) {
-    if (!dateStr) return "Today";
-    const date = new Date(dateStr);
-    const today = new Date();
-    if (date.toDateString() === today.toDateString()) return "Today";
-    return date.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
-  }
+    try {
+      const rideRef = doc(db, "rides", createdRide.id);
+      const historyRef = doc(
+        db,
+        "users",
+        user.uid,
+        "rideHistory",
+        createdRide.id,
+      );
+
+      await setDoc(historyRef, {
+        ...createdRide,
+        status: "cancelled",
+        cancelledAt: new Date().toISOString(),
+      });
+
+      await deleteDoc(rideRef);
+
+      setCreatedRide(null);
+    } catch (error) {
+      console.error("Cancel Ride Error:", error);
+    }
+  };
+
+  const [toTime, setToTime] = useState<string>("");
+  console.log("Fetch Arrival Time", {
+    from: normalizedRide?.from,
+    to: normalizedRide?.to,
+    date: normalizedRide?.date,
+    time: normalizedRide?.time,
+  });
+
+  useEffect(() => {
+    if (!isLoaded || !normalizedRide) return;
+
+    async function fetchArrivalTime() {
+      const { from, to, date, time } = normalizedRide;
+      if (!from || !to || !date || !time) return;
+
+      const departure = new Date(`${date}T${time}`);
+
+      try {
+        const time = await getEstimatedArrivalTime(from, to, departure);
+        setToTime(time);
+      } catch (err) {
+        console.error("Error estimating arrival time:", err);
+      }
+    }
+
+    fetchArrivalTime();
+  }, [normalizedRide, isLoaded]);
 
   function getSelectedPreferences() {
     const prefs = [];
@@ -603,376 +720,347 @@ export default function ModernDashboard() {
                 selectedRide={selectedRide}
                 onRideSelect={setSelectedRide}
               />
-              {/* Available Rides */}
+            </TabsContent>
+            {createdRide ? (
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold text-white flex items-center">
-                  <Shield className="h-5 w-5 mr-2 text-carpool-400" />
-                  Available Rides ({filteredRides.length})
+                  Your Active Ride
                 </h3>
-                <div className="grid gap-4">
-                  {filteredRides.map((ride) => (
-                    <div
-                      key={ride.id}
-                      className={`bg-black rounded-lg border p-6 hover:border-green-600 transition-colors cursor-pointer ${
-                        selectedRide?.id === ride.id
-                          ? "border-green-500 ring-2 ring-green-500/20"
-                          : "border-green-800"
-                      }`}
-                      onClick={() => setSelectedRide(ride)}
-                    >
-                      <div className="flex flex-col lg:flex-row gap-6">
-                        {/* Driver Info */}
-                        <div className="flex items-center space-x-4">
-                          <Avatar className="h-12 w-12 ring-2 ring-carpool-500">
-                            <AvatarImage src={ride.driver.avatar} />
-                            <AvatarFallback className="bg-gradient-to-br from-carpool-500 to-carpool-700 text-white">
-                              {ride.driver.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <h4 className="font-semibold text-white">
-                                {ride.driver.name}
-                              </h4>
-                              {ride.driver.verified && (
-                                <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
-                                  <Shield className="h-3 w-3 mr-1" />
-                                  Verified
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-2 text-sm text-white/70">
-                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                              <span>{ride.driver.rating}</span>
-                              <span>•</span>
-                              <span>{ride.driver.ridesCompleted} rides</span>
-                              <span>•</span>
-                            </div>
-                          </div>
-                        </div>
-                        {/* Route Info */}
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                          <div className="text-center">
-                            <p className="font-medium text-white">
-                              {ride.route.fromTime}
-                            </p>
-                            <p className="text-sm text-white/70 truncate">
-                              {ride.route.from}
-                            </p>
-                          </div>
-                          <div className="flex items-center justify-center">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-carpool-400 rounded-full" />
-                              <div className="w-16 h-px bg-gradient-to-r from-carpool-400 to-carpool-600" />
-                              <Car className="h-4 w-4 text-carpool-400" />
-                              <div className="w-16 h-px bg-gradient-to-r from-carpool-600 to-carpool-400" />
-                              <div className="w-2 h-2 bg-carpool-400 rounded-full" />
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <p className="font-medium text-white">
-                              {ride.route.toTime}
-                            </p>
-                            <p className="text-sm text-white/70 truncate">
-                              {ride.route.to}
-                            </p>
-                          </div>
-                        </div>
-                        {/* Booking Info */}
-                        <div className="flex flex-col items-end space-y-2">
-                          <div className="text-right">
-                            <div className="text-2xl font-bold text-white">
-                              ₹{ride.price}
-                            </div>
-                            <div className="flex items-center text-sm text-white/70">
-                              <Users className="h-3 w-3 mr-1" />
-                              <span>
-                                {ride.availableSeats}/{ride.totalSeats} seats
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-white/20 text-white/70 hover:text-white hover:bg-white/10"
-                            >
-                              <MessageCircle className="h-3 w-3 mr-1" />
-                              Chat
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="bg-gradient-to-r from-carpool-500 to-carpool-700 hover:from-carpool-600 hover:to-carpool-800"
-                              onClick={() => handleBookRide(ride)}
-                              disabled={bookingLoading === ride.id}
-                            >
-                              {bookingLoading === ride.id
-                                ? "Booking..."
-                                : "Book Now"}
-                            </Button>
-                          </div>
+
+                <div
+                  key={createdRide.id}
+                  className="bg-black rounded-lg border p-6 border-green-800"
+                >
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Driver Info */}
+                    <div className="flex items-center space-x-4">
+                      <Avatar className="h-12 w-12 ring-2 ring-carpool-500">
+                        <AvatarFallback>
+                          {createdRide.createdByName
+                            ?.split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-semibold text-white">
+                            {createdRide.createdByName}
+                          </h4>
+                          <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+                            <Shield className="h-3 w-3 mr-1" />
+                            Verified
+                          </Badge>
                         </div>
                       </div>
-                      {/* Preferences */}
-                      {ride.preferences.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-white/10">
-                          <div className="flex flex-wrap gap-2">
-                            {ride.preferences.map((pref, index) => (
-                              <Badge
-                                key={index}
-                                variant="outline"
-                                className="border-white/20 text-white/70"
-                              >
-                                {pref}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  ))}
+
+                    {/* Route Info */}
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                      <div className="text-center">
+                        <p className="font-medium text-white">
+                          {createdRide.time}
+                        </p>
+                        <p className="text-sm text-white/70 truncate">
+                          {createdRide.from}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-center">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-carpool-400 rounded-full" />
+                          <div className="w-16 h-px bg-gradient-to-r from-carpool-400 to-carpool-600" />
+                          <Car className="h-4 w-4 text-carpool-400" />
+                          <div className="w-16 h-px bg-gradient-to-r from-carpool-600 to-carpool-400" />
+                          <div className="w-2 h-2 bg-carpool-400 rounded-full" />
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-medium text-white">{toTime}</p>
+                        <p className="text-sm text-white/70 truncate">
+                          {createdRide.to}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Ride Details & Cancel */}
+                    <div className="flex flex-col items-end space-y-2">
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-white">
+                          ₹{createdRide.price}
+                        </div>
+                        <div className="flex items-center text-sm text-white/70">
+                          <Users className="h-3 w-3 mr-1" />
+                          <span>
+                            {createdRide.availableSeats}/
+                            {createdRide.totalSeats} seats
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                        onClick={handleCancelRide}
+                      >
+                        Cancel Ride
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Preferences */}
+                  {createdRide.preferences?.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <div className="flex flex-wrap gap-2">
+                        {createdRide.preferences.map((pref, index) => (
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            className="border-white/20 text-white/70"
+                          >
+                            {pref}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </TabsContent>
-            {/*Create Ride*/}
-            <TabsContent value="create-ride" className="p-6">
-              <div className="bg-black rounded-lg border border-green-800 p-8">
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl font-bold text-white mb-2 flex items-center justify-center">
-                    <Award className="h-6 w-6 mr-2" />
-                    Create Your Ride
-                  </h3>
-                  <p className="text-white/80">
-                    Share your journey and help others while earning
-                  </p>
-                </div>
+            ) : (
+              <TabsContent value="create-ride" className="p-6">
+                <div className="bg-black rounded-lg border border-green-800 p-8">
+                  <div className="text-center mb-8">
+                    <h3 className="text-2xl font-bold text-white mb-2 flex items-center justify-center">
+                      <Award className="h-6 w-6 mr-2" />
+                      Create Your Ride
+                    </h3>
+                    <p className="text-white/80">
+                      Share your journey and help others while earning
+                    </p>
+                  </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Route Details */}
-                  <div className="space-y-6">
-                    <h4 className="font-semibold text-white text-lg">
-                      Route Details
-                    </h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium text-green-400 mb-2 block">
-                          From
-                        </label>
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                          {isLoaded && isBrowser ? (
-                            <Autocomplete
-                              onLoad={(ref) => (createFromRef.current = ref)}
-                              onPlaceChanged={() =>
-                                setCreateRideForm((prev) => ({
-                                  ...prev,
-                                  from:
-                                    createFromRef.current?.getPlace()
-                                      ?.formatted_address ?? prev.from,
-                                }))
-                              }
-                            >
-                              <Input
-                                placeholder="Starting location"
-                                className="pl-10 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-green-500"
-                                value={createRideForm.from}
-                                onChange={(e) =>
-                                  setCreateRideForm({
-                                    ...createRideForm,
-                                    from: e.target.value,
-                                  })
-                                }
-                              />
-                            </Autocomplete>
-                          ) : (
-                            <Input
-                              disabled
-                              placeholder="Starting location"
-                              className="pl-10 bg-gray-900 border-gray-700 text-white/50"
-                            />
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-gray-200 mb-2 block">
-                          To
-                        </label>
-                        <div className="relative">
-                          <Navigation className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          {isLoaded && isBrowser ? (
-                            <Autocomplete
-                              onLoad={(ref) => (createToRef.current = ref)}
-                              onPlaceChanged={() =>
-                                setCreateRideForm((prev) => ({
-                                  ...prev,
-                                  to:
-                                    createToRef.current?.getPlace()
-                                      ?.formatted_address ?? prev.to,
-                                }))
-                              }
-                            >
-                              <Input
-                                placeholder="Destination"
-                                className="pl-10 bg-slate-700 border-gray-600 text-white placeholder:text-gray-400"
-                                value={createRideForm.to}
-                                onChange={(e) =>
-                                  setCreateRideForm({
-                                    ...createRideForm,
-                                    to: e.target.value,
-                                  })
-                                }
-                              />
-                            </Autocomplete>
-                          ) : (
-                            <Input
-                              disabled
-                              placeholder="Destination"
-                              className="pl-10 bg-slate-700 border-gray-600 text-white/50"
-                            />
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Route Details */}
+                    <div className="space-y-6">
+                      <h4 className="font-semibold text-white text-lg">
+                        Route Details
+                      </h4>
+                      <div className="space-y-4">
                         <div>
-                          <label className="text-sm font-medium text-white/90 mb-2 block">
-                            Date
+                          <label className="text-sm font-medium text-green-400 mb-2 block">
+                            From
                           </label>
-                          <Input
-                            type="date"
-                            className="bg-slate-700 border-gray-600 text-white"
-                            value={createRideForm.date}
-                            onChange={(e) =>
-                              setCreateRideForm({
-                                ...createRideForm,
-                                date: e.target.value,
-                              })
-                            }
-                          />
+                          <div className="relative">
+                            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                            {isLoaded && isBrowser ? (
+                              <Autocomplete
+                                onLoad={(ref) => (createFromRef.current = ref)}
+                                onPlaceChanged={() =>
+                                  setCreateRideForm((prev) => ({
+                                    ...prev,
+                                    from:
+                                      createFromRef.current?.getPlace()
+                                        ?.formatted_address ?? prev.from,
+                                  }))
+                                }
+                              >
+                                <Input
+                                  placeholder="Starting location"
+                                  className="pl-10 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-green-500"
+                                  value={createRideForm.from}
+                                  onChange={(e) =>
+                                    setCreateRideForm({
+                                      ...createRideForm,
+                                      from: e.target.value,
+                                    })
+                                  }
+                                />
+                              </Autocomplete>
+                            ) : (
+                              <Input
+                                disabled
+                                placeholder="Starting location"
+                                className="pl-10 bg-gray-900 border-gray-700 text-white/50"
+                              />
+                            )}
+                          </div>
                         </div>
+
                         <div>
                           <label className="text-sm font-medium text-gray-200 mb-2 block">
-                            Time
+                            To
                           </label>
-                          <Input
-                            type="time"
-                            className="bg-slate-700 border-gray-600 text-white"
-                            value={createRideForm.time}
-                            onChange={(e) =>
+                          <div className="relative">
+                            <Navigation className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            {isLoaded && isBrowser ? (
+                              <Autocomplete
+                                onLoad={(ref) => (createToRef.current = ref)}
+                                onPlaceChanged={() =>
+                                  setCreateRideForm((prev) => ({
+                                    ...prev,
+                                    to:
+                                      createToRef.current?.getPlace()
+                                        ?.formatted_address ?? prev.to,
+                                  }))
+                                }
+                              >
+                                <Input
+                                  placeholder="Destination"
+                                  className="pl-10 bg-gray-900 border-gray-700 text-white/50"
+                                  value={createRideForm.to}
+                                  onChange={(e) =>
+                                    setCreateRideForm({
+                                      ...createRideForm,
+                                      to: e.target.value,
+                                    })
+                                  }
+                                />
+                              </Autocomplete>
+                            ) : (
+                              <Input
+                                disabled
+                                placeholder="Destination"
+                                className="pl-10 bg-gray-900 border-gray-700 text-white/50"
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-sm font-medium text-white/90 mb-2 block">
+                              Date
+                            </label>
+                            <Input
+                              type="date"
+                              className="pl-10 bg-gray-900 border-gray-700 text-white/50"
+                              value={createRideForm.date}
+                              onChange={(e) =>
+                                setCreateRideForm({
+                                  ...createRideForm,
+                                  date: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-200 mb-2 block">
+                              Time
+                            </label>
+                            <Input
+                              type="time"
+                              className="pl-10 bg-gray-900 border-gray-700 text-white/50"
+                              value={createRideForm.time}
+                              onChange={(e) =>
+                                setCreateRideForm({
+                                  ...createRideForm,
+                                  time: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ride Details */}
+                    <div className="space-y-6">
+                      <h4 className="font-semibold text-white text-lg">
+                        Ride Details
+                      </h4>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-medium text-green-400 mb-2 block">
+                            Available Seats
+                          </label>
+                          <Select
+                            value={createRideForm.seats}
+                            onValueChange={(value) =>
                               setCreateRideForm({
                                 ...createRideForm,
-                                time: e.target.value,
+                                seats: value,
                               })
                             }
-                          />
+                          >
+                            <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
+                              <SelectValue placeholder="Select seats" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">1 seat</SelectItem>
+                              <SelectItem value="2">2 seats</SelectItem>
+                              <SelectItem value="3">3 seats</SelectItem>
+                              <SelectItem value="4">4 seats</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-green-400 mb-2 block">
+                            Price per person
+                          </label>
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                            <Input
+                              placeholder="₹ 0"
+                              className="pl-10 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-green-500"
+                              value={createRideForm.price}
+                              onChange={(e) =>
+                                setCreateRideForm({
+                                  ...createRideForm,
+                                  price: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Ride Details */}
-                  <div className="space-y-6">
+                  {/* Preferences */}
+                  <div className="mt-8 space-y-4">
                     <h4 className="font-semibold text-white text-lg">
-                      Ride Details
+                      Preferences
                     </h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium text-green-400 mb-2 block">
-                          Available Seats
-                        </label>
-                        <Select
-                          value={createRideForm.seats}
-                          onValueChange={(value) =>
-                            setCreateRideForm({
-                              ...createRideForm,
-                              seats: value,
-                            })
-                          }
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {[
+                        { key: "noSmoking", label: "No Smoking" },
+                        { key: "musicOk", label: "Music OK" },
+                        { key: "petFriendly", label: "Pet Friendly" },
+                        { key: "quietRide", label: "Quiet Ride" },
+                      ].map((pref) => (
+                        <label
+                          key={pref.key}
+                          className="flex items-center space-x-3 cursor-pointer"
                         >
-                          <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
-                            <SelectValue placeholder="Select seats" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">1 seat</SelectItem>
-                            <SelectItem value="2">2 seats</SelectItem>
-                            <SelectItem value="3">3 seats</SelectItem>
-                            <SelectItem value="4">4 seats</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-green-400 mb-2 block">
-                          Price per person
-                        </label>
-                        <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                          <Input
-                            placeholder="₹ 0"
-                            className="pl-10 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-green-500"
-                            value={createRideForm.price}
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-600 bg-gray-900 text-green-500 focus:ring-green-500"
+                            checked={createRideForm.preferences[pref.key]}
                             onChange={(e) =>
                               setCreateRideForm({
                                 ...createRideForm,
-                                price: e.target.value,
+                                preferences: {
+                                  ...createRideForm.preferences,
+                                  [pref.key]: e.target.checked,
+                                },
                               })
                             }
                           />
-                        </div>
-                      </div>
+                          <span className="text-gray-300">{pref.label}</span>
+                        </label>
+                      ))}
                     </div>
                   </div>
-                </div>
 
-                {/* Preferences */}
-                <div className="mt-8 space-y-4">
-                  <h4 className="font-semibold text-white text-lg">
-                    Preferences
-                  </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[
-                      { key: "noSmoking", label: "No Smoking" },
-                      { key: "musicOk", label: "Music OK" },
-                      { key: "petFriendly", label: "Pet Friendly" },
-                      { key: "quietRide", label: "Quiet Ride" },
-                    ].map((pref) => (
-                      <label
-                        key={pref.key}
-                        className="flex items-center space-x-3 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          className="rounded border-gray-600 bg-gray-900 text-green-500 focus:ring-green-500"
-                          checked={createRideForm.preferences[pref.key]}
-                          onChange={(e) =>
-                            setCreateRideForm({
-                              ...createRideForm,
-                              preferences: {
-                                ...createRideForm.preferences,
-                                [pref.key]: e.target.checked,
-                              },
-                            })
-                          }
-                        />
-                        <span className="text-gray-300">{pref.label}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <Button
+                    className="w-full mt-8 bg-carpool-600 hover:bg-carpool-700 text-lg py-6 font-semibold transition-all duration-300"
+                    onClick={handleCreateRide}
+                    disabled={isCreatingRide}
+                  >
+                    <Plus className="h-5 w-5 mr-2" />
+                    {isCreatingRide ? "Creating Ride..." : "Create Ride"}
+                  </Button>
                 </div>
-
-                <Button
-                  className="w-full mt-8 bg-carpool-600 hover:bg-carpool-700 text-lg py-6 font-semibold transition-all duration-300"
-                  onClick={handleCreateRide}
-                  disabled={isCreatingRide}
-                >
-                  <Plus className="h-5 w-5 mr-2" />
-                  {isCreatingRide ? "Creating Ride..." : "Create Ride"}
-                </Button>
-              </div>
-            </TabsContent>
+              </TabsContent>
+            )}
 
             {/* Calculate Route Tab */}
             <TabsContent value="calculate-route" className="p-6">

@@ -33,7 +33,6 @@ export const auth = getAuth(app);
 
 export const db = getFirestore(app);
 
-// 1. Get current user (returns User | null)
 export function getCurrentUser(): Promise<User | null> {
   return new Promise((resolve) => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -43,22 +42,19 @@ export function getCurrentUser(): Promise<User | null> {
   });
 }
 
-// 2. Get user profile from Firestore
-export async function getUserProfile(uid: string): Promise<DocumentData | null> {
-  const ref = doc(db, 'users', uid);
-  const snap = await getDoc(ref);
-  return snap.exists() ? snap.data() : null;
-}
+// export async function getUserProfile(uid: string): Promise<DocumentData | null> {
+//   const ref = doc(db, 'users', uid);
+//   const snap = await getDoc(ref);
+//   return snap.exists() ? snap.data() : null;
+// }
 
-// 3. Listen for user profile changes (returns unsubscribe function)
-export function onUserProfileChange(uid: string, callback: (profile: DocumentData | null) => void) {
-  const ref = doc(db, 'users', uid);
-  return onSnapshot(ref, (snap) => {
-    callback(snap.exists() ? snap.data() : null);
-  });
-}
+// export function onUserProfileChange(uid: string, callback: (profile: DocumentData | null) => void) {
+//   const ref = doc(db, 'users', uid);
+//   return onSnapshot(ref, (snap) => {
+//     callback(snap.exists() ? snap.data() : null);
+//   });
+// }
 
-// 4. Get all active rides (today and future, status: 'active')
 export async function getActiveRides(): Promise<DocumentData[]> {
   const ridesRef = collection(db, 'rides');
   const q = query(
@@ -70,19 +66,17 @@ export async function getActiveRides(): Promise<DocumentData[]> {
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }
 
-// 5. Get all rides posted by a user
-export async function getUserRides(uid: string): Promise<DocumentData[]> {
-  const ridesRef = collection(db, 'rides');
-  const q = query(
-    ridesRef,
-    where('driverId', '==', uid),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-}
+// export async function getUserRides(uid: string): Promise<DocumentData[]> {
+//   const ridesRef = collection(db, 'rides');
+//   const q = query(
+//     ridesRef,
+//     where('driverId', '==', uid),
+//     orderBy('createdAt', 'desc')
+//   );
+//   const snapshot = await getDocs(q);
+//   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+// }
 
-// 6. Get all bookings made by a user
 export async function getUserBookings(uid: string): Promise<DocumentData[]> {
   const bookingsRef = collection(db, 'bookings');
   const q = query(
@@ -94,7 +88,6 @@ export async function getUserBookings(uid: string): Promise<DocumentData[]> {
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }
 
-// 7. Logout user
 export function logoutUser(): Promise<void> {
   return signOut(auth);
 }

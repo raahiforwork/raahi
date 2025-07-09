@@ -18,7 +18,7 @@ export default function InnerNavbar() {
   };
 
   return (
-    <nav className="z-50 fixed top-0 left-0 w-full bg-white border-b border-green-100 text-green-800 px-6 py-2 flex justify-between items-center shadow-md">
+    <nav className="z-50 fixed top-0 left-0 w-full bg-black text-green-800 px-6 py-2 flex justify-between items-center shadow-lg shadow-gray-800">
       {/* Logo */}
       <Link href="/" className="flex items-center space-x-2">
         <Image

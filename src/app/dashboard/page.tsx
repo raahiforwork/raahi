@@ -60,6 +60,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 
 const libraries = ["places"];
 const nunito = Nunito({ subsets: ["latin"], weight: ["400", "700"] });
@@ -552,6 +553,8 @@ export default function ModernDashboard() {
     time: normalizedRide?.time,
   });
 
+   
+
   useEffect(() => {
     if (!isLoaded || !normalizedRide) return;
 
@@ -588,6 +591,7 @@ export default function ModernDashboard() {
       className={`min-h-screen bg-black relative overflow-hidden ${nunito.className}`}
     >
       <InnerNavbar />
+      
       <div className="relative z-10 container mx-auto px-4 py-8 mt-20">
         <div className="bg-black rounded-lg border border-green-800 overflow-hidden">
           <Tabs
@@ -630,16 +634,7 @@ export default function ModernDashboard() {
             {/* Find Rides Tab */}
             <TabsContent value="find-rides" className="p-6 space-y-6">
               <div className="text-center py-8">
-                <h2 className="text-3xl font-bold text-white mb-2">
-                  Welcome back,{" "}
-                  <span className="bg-gradient-to-r from-carpool-400 to-carpool-600 bg-clip-text text-transparent">
-                    {mockUser.firstName}
-                  </span>
-                  ! 🚗
-                </h2>
-                <p className="text-white/70 text-lg">
-                  Ready for your next journey? Let's find you the perfect ride!
-                </p>
+               <WelcomeBanner />
               </div>
               <div className="bg-black rounded-lg border border-green-800 p-6">
                 <h3 className="text-xl font-semibold text-white mb-4 flex items-center">

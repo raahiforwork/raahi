@@ -37,37 +37,70 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 
 export default function FirebaseChatApp() {
-  const { user, userProfile } = useAuth();
   const router = useRouter();
-  const { chatRooms, loading: chatRoomsLoading } = useChatRooms();
-  const [selectedChatRoom, setSelectedChatRoom] =
-    React.useState<ChatRoom | null>(null);
+  const { user } = useAuth();
+  const [selectedChatRoom, setSelectedChatRoom] = React.useState<any>(null);
   const [newMessage, setNewMessage] = React.useState("");
   const [isMobileView, setIsMobileView] = React.useState(false);
+  const [chatRooms, setChatRooms] = React.useState<any[]>([]);
+  const [messages, setMessages] = React.useState<any[]>([]);
 
-  const {
-    messages,
-    loading: messagesLoading,
-    sendMessage,
-  } = useChat(selectedChatRoom?.id);
+  // Get current user info
+  const currentUser = {
+    uid: user?.uid || "anonymous",
+    firstName: user?.displayName?.split(" ")[0] || "User",
+    lastName: user?.displayName?.split(" ")[1] || "",
+    email: user?.email || "user@example.com",
+  };
 
-  // Select first chat room when available
+  // Load chat rooms from localStorage
   React.useEffect(() => {
-    if (chatRooms.length > 0 && !selectedChatRoom) {
-      setSelectedChatRoom(chatRooms[0]);
+    const savedRooms = localStorage.getItem("chatRooms");
+    if (savedRooms) {
+      const rooms = JSON.parse(savedRooms);
+      setChatRooms(rooms);
+      if (rooms.length > 0 && !selectedChatRoom) {
+        setSelectedChatRoom(rooms[0]);
+      }
     }
-  }, [chatRooms, selectedChatRoom]);
+  }, [selectedChatRoom]);
+
+  // Load messages for selected room
+  React.useEffect(() => {
+    if (selectedChatRoom) {
+      const savedMessages = localStorage.getItem(
+        `messages_${selectedChatRoom.id}`,
+      );
+      if (savedMessages) {
+        setMessages(JSON.parse(savedMessages));
+      } else {
+        setMessages([]);
+      }
+    }
+  }, [selectedChatRoom]);
 
   // Handle sending message
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedChatRoom) return;
 
-    try {
-      await sendMessage(newMessage);
-      setNewMessage("");
-    } catch (error) {
-      toast.error("Failed to send message");
-    }
+    const message = {
+      id: Date.now(),
+      text: newMessage.trim(),
+      senderId: currentUser.uid,
+      senderName: `${currentUser.firstName} ${currentUser.lastName}`.trim(),
+      senderEmail: currentUser.email,
+      timestamp: new Date(),
+      chatRoomId: selectedChatRoom.id,
+    };
+
+    const updatedMessages = [...messages, message];
+    setMessages(updatedMessages);
+    localStorage.setItem(
+      `messages_${selectedChatRoom.id}`,
+      JSON.stringify(updatedMessages),
+    );
+    setNewMessage("");
+    toast.success("Message sent!");
   };
 
   // Handle Enter key press
@@ -83,8 +116,12 @@ export default function FirebaseChatApp() {
     if (!timestamp) return "";
 
     try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return format(date, "HH:mm");
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
     } catch {
       return "";
     }
@@ -95,14 +132,21 @@ export default function FirebaseChatApp() {
     if (!timestamp) return "";
 
     try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      const date = new Date(timestamp);
       const now = new Date();
       const isToday = date.toDateString() === now.toDateString();
 
       if (isToday) {
-        return format(date, "HH:mm");
+        return date.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
       } else {
-        return format(date, "MMM dd");
+        return date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
       }
     } catch {
       return "";
@@ -112,7 +156,7 @@ export default function FirebaseChatApp() {
   // Authentication is now handled by ProtectedRoute wrapper
 
   // Show empty state if no chat rooms
-  if (!chatRoomsLoading && chatRooms.length === 0) {
+  if (chatRooms.length === 0) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
         <Card className="w-96">
@@ -178,9 +222,9 @@ export default function FirebaseChatApp() {
 
         {/* Chat Rooms List */}
         <div className="flex-1 overflow-y-auto">
-          {chatRoomsLoading ? (
+          {chatRooms.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground">
-              Loading chats...
+              No chat rooms yet. Book a ride to start chatting!
             </div>
           ) : (
             chatRooms.map((room) => (
@@ -341,17 +385,13 @@ export default function FirebaseChatApp() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messagesLoading ? (
-                <div className="text-center text-muted-foreground">
-                  Loading messages...
-                </div>
-              ) : messages.length === 0 ? (
+              {messages.length === 0 ? (
                 <div className="text-center text-muted-foreground">
                   No messages yet. Start the conversation!
                 </div>
               ) : (
                 messages.map((message) => {
-                  const isOwnMessage = message.senderId === user.uid;
+                  const isOwnMessage = message.senderId === currentUser.uid;
 
                   return (
                     <div

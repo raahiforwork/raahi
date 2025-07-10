@@ -34,13 +34,20 @@ export default function InnerNavbar() {
       {/* Right Side */}
       <div className="flex items-center space-x-4">
         {user && (
-          <Button
-            onClick={handleLogout}
-            className="bg-green-600 text-white hover:bg-green-700"
-          >
-            Logout
+      <>
+        <Link href="/chat">
+          <Button className="bg-green-100 text-green-800 hover:bg-green-200">
+            Chat
           </Button>
-        )}
+        </Link>
+        <Button
+          onClick={handleLogout}
+          className="bg-green-600 text-white hover:bg-green-700"
+        >
+          Logout
+        </Button>
+      </>
+    )}
       </div>
     </nav>
   );

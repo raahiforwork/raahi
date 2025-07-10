@@ -45,6 +45,7 @@ import {
 import { FloatingButton } from "@/components/ui/floating-button";
 import { toast } from "sonner";
 import InnerNavbar from "@/components/InnerNavbar";
+import { getUserProfile } from "@/lib/getUserProfile";
 import { Nunito } from "next/font/google";
 import { useRouter } from "next/navigation";
 import {
@@ -53,6 +54,7 @@ import {
   setDoc,
   deleteDoc,
   getDocs,
+  getDoc,
   addDoc,
   query,
   where,
@@ -61,114 +63,17 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
+import AvailableRidesList from "@/components/dashboard/AvailableRidesList";
 
 const libraries = ["places"];
 const nunito = Nunito({ subsets: ["latin"], weight: ["400", "700"] });
-
-const availableRides = [
-  {
-    id: 1,
-    driver: {
-      name: "Priya Sharma",
-      avatar: "/placeholder.svg",
-      rating: 4.8,
-      ridesCompleted: 45,
-      verified: true,
-    },
-    route: {
-      from: "Connaught Place",
-      to: "Gurgaon Cyber City",
-      fromTime: "8:30 AM",
-      toTime: "9:15 AM",
-      date: "Today",
-    },
-    availableSeats: 2,
-    totalSeats: 4,
-    price: 180,
-    car: {
-      model: "Honda City",
-      number: "DL 01 AB 1234",
-    },
-    preferences: ["No Smoking", "Music OK"],
-    distance: "28 km",
-    duration: "45 min",
-    features: ["AC", "WiFi"],
-  },
-  {
-    id: 2,
-    driver: {
-      name: "Raj Malhotra",
-      avatar: "/placeholder.svg",
-      rating: 4.6,
-      ridesCompleted: 32,
-      verified: true,
-    },
-    route: {
-      from: "Karol Bagh",
-      to: "Noida Sector 62",
-      fromTime: "9:00 AM",
-      toTime: "10:00 AM",
-      date: "Today",
-    },
-    availableSeats: 3,
-    totalSeats: 4,
-    price: 220,
-    car: {
-      model: "Maruti Swift",
-      number: "DL 02 CD 5678",
-    },
-    preferences: ["Pet Friendly", "Quiet Ride"],
-    distance: "35 km",
-    duration: "1h 0m",
-    features: ["AC", "Music"],
-  },
-  {
-    id: 3,
-    driver: {
-      name: "Sneha Kapoor",
-      avatar: "/placeholder.svg",
-      rating: 4.9,
-      ridesCompleted: 78,
-      verified: true,
-    },
-    route: {
-      from: "Dwarka",
-      to: "Gurgaon DLF Phase 1",
-      fromTime: "7:45 AM",
-      toTime: "8:45 AM",
-      date: "Tomorrow",
-    },
-    availableSeats: 1,
-    totalSeats: 4,
-    price: 250,
-    car: {
-      model: "Toyota Innova",
-      number: "DL 03 EF 9012",
-    },
-    preferences: ["No Smoking", "Music OK", "Pet Friendly"],
-    distance: "42 km",
-    duration: "1h 0m",
-    features: ["AC", "WiFi", "USB Charging"],
-  },
-];
 
 type LatLng = {
   lat: number;
   lng: number;
 };
 
-const predefinedLocations: Record<string, LatLng> = {
-  "Connaught Place": { lat: 28.6315, lng: 77.2167 },
-  "Gurgaon Cyber City": { lat: 28.4946, lng: 77.0886 },
-  "Karol Bagh": { lat: 28.6517, lng: 77.1907 },
-  "Noida Sector 62": { lat: 28.6304, lng: 77.3735 },
-  Dwarka: { lat: 28.5921, lng: 77.046 },
-  "Gurgaon DLF Phase 1": { lat: 28.4799, lng: 77.0802 },
-};
-
 export async function geocodeAddress(address: string): Promise<LatLng> {
-  if (predefinedLocations[address]) return predefinedLocations[address];
-
   return new Promise<LatLng>((resolve) => {
     if (typeof window === "undefined" || !window.google) {
       return resolve({ lat: 28.6139, lng: 77.209 });
@@ -228,7 +133,7 @@ function RideMapWrapper({
       const markerData = await Promise.all(
         rides.map(async (ride) => ({
           id: ride.id,
-          position: await geocodeAddress(ride.route.from),
+          position: await geocodeAddress(ride.from),
         })),
       );
       setMarkers(markerData);
@@ -244,8 +149,8 @@ function RideMapWrapper({
       }
       if (typeof window !== "undefined" && window.google) {
         const directionsService = new window.google.maps.DirectionsService();
-        const origin = await geocodeAddress(selectedRide.route.from);
-        const destination = await geocodeAddress(selectedRide.route.to);
+        const origin = await geocodeAddress(selectedRide.from);
+        const destination = await geocodeAddress(selectedRide.to);
         directionsService.route(
           {
             origin,
@@ -329,6 +234,8 @@ export async function getEstimatedArrivalTime(
   });
 }
 
+const userProfile = await getUserProfile();
+
 export default function ModernDashboard() {
   const [searchFrom, setSearchFrom] = useState("");
   const [searchTo, setSearchTo] = useState("");
@@ -353,6 +260,23 @@ export default function ModernDashboard() {
   const [isCreatingRide, setIsCreatingRide] = useState(false);
   const [selectedRide, setSelectedRide] = useState(null);
   const [isBrowser, setIsBrowser] = useState(false);
+  const [availableRides, setAvailableRides] = useState<
+    {
+      id: string;
+      from: string;
+      to: string;
+      date: string;
+      time: string;
+      price: number;
+      createdByName: string;
+      preferences?: string[];
+      availableSeats: number;
+      totalSeats: number;
+      status: string;
+      [key: string]: any;
+    }[]
+  >([]);
+
   const createFromRef = useRef(null);
   const createToRef = useRef(null);
   useEffect(() => {
@@ -362,6 +286,29 @@ export default function ModernDashboard() {
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
     libraries: ["places"],
   });
+
+  useEffect(() => {
+    const fetchAvailableRides = async () => {
+      try {
+        const q = query(
+          collection(db, "rides"),
+          where("status", "==", "active"),
+        );
+        const querySnapshot = await getDocs(q);
+
+        const rides = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        setAvailableRides(rides);
+      } catch (error) {
+        console.error("Error fetching available rides:", error);
+      }
+    };
+
+    fetchAvailableRides();
+  }, []);
 
   const fromRef = useRef<google.maps.places.Autocomplete | null>(null);
   const toRef = useRef<google.maps.places.Autocomplete | null>(null);
@@ -389,10 +336,6 @@ export default function ModernDashboard() {
     }
   }, [user, authLoading, router]);
 
-  const allAvailableRides = useMemo(() => {
-    return [...availableRides, ...(createdRide ? [createdRide] : [])];
-  }, [availableRides, createdRide]);
-
   useEffect(() => {
     if (!user) return;
 
@@ -415,23 +358,15 @@ export default function ModernDashboard() {
     fetchActiveRide();
   }, [user]);
 
+  const allAvailableRides = useMemo(() => {
+    return [...availableRides, ...(createdRide ? [createdRide] : [])];
+  }, [availableRides, createdRide]);
+
   const filteredRides = useMemo(() => {
-    return allAvailableRides.filter((ride) => {
-      const dateMatch =
-        selectedDate === "today"
-          ? ride.route?.date === "Today"
-          : selectedDate === "tomorrow"
-            ? ride.route?.date === "Tomorrow"
-            : true;
+    if (!user) return [];
 
-      return dateMatch;
-    });
-  }, [allAvailableRides, selectedDate]);
-
-  const mockUser = {
-    firstName: "John",
-    lastName: "Doe",
-  };
+    return allAvailableRides.filter((ride) => ride.userId !== user.uid);
+  }, [allAvailableRides, user]);
 
   const handleBookRide = async (ride) => {
     setBookingLoading(ride.id);
@@ -483,7 +418,9 @@ export default function ModernDashboard() {
         createdAt: serverTimestamp(),
         userId: user.uid,
         createdBy: user.uid,
-        createdByName: user.displayName || "Anonymous",
+        createdByName:
+          `${userProfile?.firstName ?? ""} ${userProfile?.lastName ?? ""}`.trim() ||
+          "Anonymous",
         status: "active",
         availableSeats: parseInt(createRideForm.seats),
         totalSeats: parseInt(createRideForm.seats),
@@ -553,8 +490,6 @@ export default function ModernDashboard() {
     time: normalizedRide?.time,
   });
 
-   
-
   useEffect(() => {
     if (!isLoaded || !normalizedRide) return;
 
@@ -591,7 +526,7 @@ export default function ModernDashboard() {
       className={`min-h-screen bg-black relative overflow-hidden ${nunito.className}`}
     >
       <InnerNavbar />
-      
+
       <div className="relative z-10 container mx-auto px-4 py-8 mt-20">
         <div className="bg-black rounded-lg border border-green-800 overflow-hidden">
           <Tabs
@@ -634,7 +569,7 @@ export default function ModernDashboard() {
             {/* Find Rides Tab */}
             <TabsContent value="find-rides" className="p-6 space-y-6">
               <div className="text-center py-8">
-               <WelcomeBanner />
+                <WelcomeBanner />
               </div>
               <div className="bg-black rounded-lg border border-green-800 p-6">
                 <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
@@ -715,10 +650,21 @@ export default function ModernDashboard() {
                 selectedRide={selectedRide}
                 onRideSelect={setSelectedRide}
               />
+              <AvailableRidesList
+                rides={filteredRides} // now same as allAvailableRides
+                selectedRide={selectedRide}
+                onRideSelect={setSelectedRide}
+                onBook={handleBookRide}
+                bookingLoading={bookingLoading}
+              />
             </TabsContent>
+            {/*Create Ride*/}
             {createdRide ? (
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-white flex items-center">
+              <div
+                className="space-y-4"
+                onClick={() => setSelectedRide(createdRide)}
+              >
+                <h3 className="text-xl p-2 font-semibold text-white flex items-center">
                   Your Active Ride
                 </h3>
 

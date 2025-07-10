@@ -42,6 +42,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { Timestamp } from "firebase/firestore";
+import { chatService } from "@/lib/chatService"; 
+import { bookRideInDatabase } from "@/lib/bookRideInDatabase";
+
+
 import { FloatingButton } from "@/components/ui/floating-button";
 import { toast } from "sonner";
 import InnerNavbar from "@/components/InnerNavbar";
@@ -53,6 +59,8 @@ import {
   doc,
   setDoc,
   deleteDoc,
+  updateDoc,
+  increment,
   getDocs,
   getDoc,
   addDoc,
@@ -221,7 +229,7 @@ export async function getEstimatedArrivalTime(
           const arrivalTime = leg.arrival_time;
 
           if (arrivalTime) {
-            resolve(arrivalTime.text); // example: "3:45 PM"
+            resolve(arrivalTime.text); 
           } else {
             resolve("Unknown");
           }
@@ -351,7 +359,7 @@ export default function ModernDashboard() {
         const rideDoc = querySnapshot.docs[0];
         setCreatedRide({ id: rideDoc.id, ...rideDoc.data() });
       } else {
-        setCreatedRide(null); // No active ride
+        setCreatedRide(null); 
       }
     };
 
@@ -368,20 +376,43 @@ export default function ModernDashboard() {
     return allAvailableRides.filter((ride) => ride.userId !== user.uid);
   }, [allAvailableRides, user]);
 
-  const handleBookRide = async (ride) => {
-    setBookingLoading(ride.id);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      toast.success(
-        `Successfully booked ride from ${ride.route.from} to ${ride.route.to}!`,
-      );
-      toast.info("Chat room will be created when other passengers join.");
-    } catch (error) {
-      toast.error("Failed to book ride. Please try again.");
-    } finally {
-      setBookingLoading(null);
+
+
+
+
+
+ 
+
+  const handleBookRide = async (ride: Ride) => {
+  setBookingLoading(ride.id);
+
+  try {
+    await bookRideInDatabase(ride); 
+    const chatRoomId = await chatService.findChatRoomByRide(ride.id);
+
+  
+    if (chatRoomId && user) {
+      await chatService.joinChatRoom(chatRoomId, user.uid, {
+        firstName: userProfile?.firstName || "Unknown",
+        lastName: userProfile?.lastName || "",
+        email: user.email || "",
+        phone: user.phoneNumber || "",
+      });
     }
-  };
+
+    toast.success(`Successfully booked ride from ${ride.from} to ${ride.to}`);
+    toast.success("You've been added to the chat room 🎉");
+
+  
+    router.push("/chat");
+
+  } catch (error) {
+    console.error("Booking error:", error);
+    toast.error("Failed to book ride. Please try again.");
+  } finally {
+    setBookingLoading(null);
+  }
+};
 
   const normalizedRide = useMemo(() => {
     if (!createdRide) return null;
@@ -401,59 +432,81 @@ export default function ModernDashboard() {
     };
   }, [createdRide]);
 
-  const handleCreateRide = async () => {
-    if (
-      !createRideForm.from ||
-      !createRideForm.to ||
-      !createRideForm.date ||
-      !createRideForm.time
-    ) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
 
-    try {
-      const rideData = {
-        ...createRideForm,
-        createdAt: serverTimestamp(),
-        userId: user.uid,
-        createdBy: user.uid,
-        createdByName:
-          `${userProfile?.firstName ?? ""} ${userProfile?.lastName ?? ""}`.trim() ||
-          "Anonymous",
-        status: "active",
-        availableSeats: parseInt(createRideForm.seats),
-        totalSeats: parseInt(createRideForm.seats),
-        preferences: Object.entries(createRideForm.preferences)
-          .filter(([_, value]) => value)
-          .map(([key]) => key), // Store preferences as an array of active ones
-      };
+const handleCreateRide = async () => {
+  if (
+    !createRideForm.from ||
+    !createRideForm.to ||
+    !createRideForm.date ||
+    !createRideForm.time
+  ) {
+    toast.error("Please fill in all required fields");
+    return;
+  }
 
-      const docRef = await addDoc(collection(db, "rides"), rideData);
+  try {
+    const rideData = {
+      ...createRideForm,
+      createdAt: serverTimestamp(),
+      userId: user.uid,
+      createdBy: user.uid,
+      createdByName:
+        `${userProfile?.firstName ?? ""} ${userProfile?.lastName ?? ""}`.trim() ||
+        "Anonymous",
+      status: "active",
+      availableSeats: parseInt(createRideForm.seats),
+      totalSeats: parseInt(createRideForm.seats),
+      preferences: Object.entries(createRideForm.preferences)
+        .filter(([_, value]) => value)
+        .map(([key]) => key),
+    };
 
-      const createdDoc = await getDoc(docRef);
-      setCreatedRide({ id: createdDoc.id, ...createdDoc.data() });
+    const docRef = await addDoc(collection(db, "rides"), rideData);
 
-      toast.success("Ride created successfully!");
-      setCreateRideForm({
-        from: "",
-        to: "",
-        date: "",
-        time: "",
-        seats: "",
-        price: "",
-        preferences: {
-          noSmoking: false,
-          musicOk: false,
-          petFriendly: false,
-          quietRide: false,
-        },
-      });
-    } catch (error) {
-      console.error("Error adding document: ", error);
-      toast.error("Failed to create ride.");
-    }
-  };
+    const createdDoc = await getDoc(docRef);
+    const rideId = createdDoc.id;
+    setCreatedRide({ id: rideId, ...createdDoc.data() });
+
+    
+    await chatService.createChatRoom({
+      rideId,
+      userId: user.uid,
+      userDetails: {
+        firstName: userProfile?.firstName || "",
+        lastName: userProfile?.lastName || "",
+        email: user.email || "",
+        phone: user.phoneNumber || "",
+      },
+      route: {
+        from: rideData.from,
+        to: rideData.to,
+        date: rideData.date,
+        time: rideData.time,
+      },
+    });
+
+    toast.success("Ride created successfully!");
+
+    setCreateRideForm({
+      from: "",
+      to: "",
+      date: "",
+      time: "",
+      seats: "",
+      price: "",
+      preferences: {
+        noSmoking: false,
+        musicOk: false,
+        petFriendly: false,
+        quietRide: false,
+      },
+    });
+  } catch (error) {
+    console.error("Error adding document or creating chat room: ", error);
+    toast.error("Failed to create ride.");
+  }
+};
+
 
   const handleCancelRide = async () => {
     if (!createdRide || !createdRide.id || !user) return;

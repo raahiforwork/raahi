@@ -2,12 +2,14 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { getDoc, doc } from 'firebase/firestore';
 
 type AuthContextType = {
   user: User | null;
   loading: boolean;
   logout: () => void;
+  userProfile: { firstName: string; lastName: string } | null;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -15,11 +17,29 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<{ firstName: string; lastName: string } | null>(null);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
+
+      if (firebaseUser) {
+        const docRef = doc(db, "users", firebaseUser.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setUserProfile({
+            firstName: data.firstName || "",
+            lastName: data.lastName || "",
+          });
+        } else {
+          setUserProfile({ firstName: "", lastName: "" });
+        }
+      } else {
+        setUserProfile(null);
+      }
     });
 
     return () => unsub();
@@ -30,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout }}>
+    <AuthContext.Provider value={{ user, loading, logout, userProfile }}>
       {!loading && children}
     </AuthContext.Provider>
   );

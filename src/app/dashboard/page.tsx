@@ -43,7 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { Timestamp } from "firebase/firestore";
+import { Timestamp, DocumentData } from "firebase/firestore";
 import { chatService } from "@/lib/chatService";
 import { bookRideInDatabase } from "@/lib/bookRideInDatabase";
 
@@ -101,12 +101,19 @@ async function geocodeAddress(address: string): Promise<LatLng> {
   });
 }
 
-type Ride = {
-  id: number;
-  route: {
-    from: string;
-    to: string;
-  };
+export type Ride = {
+  id: string;
+  from: string;
+  to: string;
+  date: string;
+  time: string;
+  price: number;
+  createdByName: string;
+  preferences: string[];
+  availableSeats: number;
+  totalSeats: number;
+  status: string;
+  userId: string;
 };
 
 type RideMapWrapperProps = {
@@ -125,11 +132,11 @@ function RideMapWrapper({
   const libraries: Library[] = ["places"];
 
   const { isLoaded, loadError } = useLoadScript({
-  googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-  libraries,
-});
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+    libraries,
+  });
 
-  const [markers, setMarkers] = useState<{ id: number; position: LatLng }[]>(
+  const [markers, setMarkers] = useState<{ id: string; position: LatLng }[]>(
     [],
   );
   const [directions, setDirections] =
@@ -244,11 +251,11 @@ async function getEstimatedArrivalTime(
 export default function ModernDashboard() {
   const [searchFrom, setSearchFrom] = useState("");
   const [searchTo, setSearchTo] = useState("");
-  const { userProfile} = useAuth();
+  const { userProfile } = useAuth();
   const [selectedDate, setSelectedDate] = useState("today");
   const [activeTab, setActiveTab] = useState("find-rides");
-  const [bookingLoading, setBookingLoading] = useState(null);
-  const [createdRide, setCreatedRide] = useState(null);
+  const [bookingLoading, setBookingLoading] = useState<string | null>(null);
+  const [createdRide, setCreatedRide] = useState<Ride | null>(null);
   const [createRideForm, setCreateRideForm] = useState({
     from: "",
     to: "",
@@ -264,27 +271,12 @@ export default function ModernDashboard() {
     },
   });
   const [isCreatingRide, setIsCreatingRide] = useState(false);
-  const [selectedRide, setSelectedRide] = useState(null);
+  const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
   const [isBrowser, setIsBrowser] = useState(false);
-  const [availableRides, setAvailableRides] = useState<
-    {
-      id: string;
-      from: string;
-      to: string;
-      date: string;
-      time: string;
-      price: number;
-      createdByName: string;
-      preferences?: string[];
-      availableSeats: number;
-      totalSeats: number;
-      status: string;
-      [key: string]: any;
-    }[]
-  >([]);
+  const [availableRides, setAvailableRides] = useState<Ride[]>([]);
 
-  const createFromRef = useRef(null);
-  const createToRef = useRef(null);
+  const createFromRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const createToRef = useRef<google.maps.places.Autocomplete | null>(null);
 
   useEffect(() => {
     setIsBrowser(typeof window !== "undefined");
@@ -303,10 +295,13 @@ export default function ModernDashboard() {
         );
         const querySnapshot = await getDocs(q);
 
-        const rides = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const rides: Ride[] = querySnapshot.docs.map((doc) => {
+          const data = doc.data() as Omit<Ride, "id">;
+          return {
+            id: doc.id,
+            ...data,
+          };
+        });
 
         setAvailableRides(rides);
       } catch (error) {
@@ -321,16 +316,20 @@ export default function ModernDashboard() {
   const toRef = useRef<google.maps.places.Autocomplete | null>(null);
 
   const handleFromPlaceChanged = () => {
-    const place = fromRef.current.getPlace();
-    if (place?.formatted_address) {
-      setSearchFrom(place.formatted_address);
+    if (fromRef.current) {
+      const place = fromRef.current.getPlace();
+      if (place?.formatted_address) {
+        setSearchFrom(place.formatted_address);
+      }
     }
   };
 
   const handleToPlaceChanged = () => {
-    const place = toRef.current.getPlace();
-    if (place?.formatted_address) {
-      setSearchTo(place.formatted_address);
+    if (toRef.current) {
+      const place = toRef.current.getPlace();
+      if (place?.formatted_address) {
+        setSearchTo(place.formatted_address);
+      }
     }
   };
 
@@ -356,7 +355,12 @@ export default function ModernDashboard() {
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
         const rideDoc = querySnapshot.docs[0];
-        setCreatedRide({ id: rideDoc.id, ...rideDoc.data() });
+        const data = rideDoc.data() as Omit<Ride, "id">;
+
+        setCreatedRide({
+          id: rideDoc.id,
+          ...data,
+        });
       } else {
         setCreatedRide(null);
       }
@@ -436,8 +440,8 @@ export default function ModernDashboard() {
       const rideData = {
         ...createRideForm,
         createdAt: serverTimestamp(),
-        userId: user.uid,
-        createdBy: user.uid,
+        userId: user!.uid,
+        createdBy: user!.uid,
         createdByName:
           `${userProfile?.firstName ?? ""} ${userProfile?.lastName ?? ""}`.trim() ||
           "Anonymous",
@@ -453,16 +457,20 @@ export default function ModernDashboard() {
 
       const createdDoc = await getDoc(docRef);
       const rideId = createdDoc.id;
-      setCreatedRide({ id: rideId, ...createdDoc.data() });
+      const data = createdDoc.data() as Omit<Ride, "id">;
+      setCreatedRide({
+        id: rideId,
+        ...data,
+      });
 
       await chatService.createChatRoom({
         rideId,
-        userId: user.uid,
+        userId: user!.uid,
         userDetails: {
           firstName: userProfile?.firstName || "",
           lastName: userProfile?.lastName || "",
-          email: user.email || "",
-          phone: user.phoneNumber || "",
+          email: user!.email || "",
+          phone: user!.phoneNumber || "",
         },
         route: {
           from: rideData.from,
@@ -532,8 +540,11 @@ export default function ModernDashboard() {
   useEffect(() => {
     if (!isLoaded || !normalizedRide) return;
 
+    const ride = normalizedRide;
+
     async function fetchArrivalTime() {
-      const { from, to, date, time } = normalizedRide;
+      const { from, to, date, time } = ride;
+
       if (!from || !to || !date || !time) return;
 
       const departure = new Date(`${date}T${time}`);
@@ -690,7 +701,7 @@ export default function ModernDashboard() {
                 onRideSelect={setSelectedRide}
               />
               <AvailableRidesList
-                rides={filteredRides} // now same as allAvailableRides
+                rides={filteredRides}
                 selectedRide={selectedRide}
                 onRideSelect={setSelectedRide}
                 onBook={handleBookRide}
@@ -1000,12 +1011,14 @@ export default function ModernDashboard() {
                       Preferences
                     </h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {[
-                        { key: "noSmoking", label: "No Smoking" },
-                        { key: "musicOk", label: "Music OK" },
-                        { key: "petFriendly", label: "Pet Friendly" },
-                        { key: "quietRide", label: "Quiet Ride" },
-                      ].map((pref) => (
+                      {(
+                        [
+                          { key: "noSmoking", label: "No Smoking" },
+                          { key: "musicOk", label: "Music OK" },
+                          { key: "petFriendly", label: "Pet Friendly" },
+                          { key: "quietRide", label: "Quiet Ride" },
+                        ] as const
+                      ).map((pref) => (
                         <label
                           key={pref.key}
                           className="flex items-center space-x-3 cursor-pointer"
@@ -1015,13 +1028,13 @@ export default function ModernDashboard() {
                             className="rounded border-gray-600 bg-gray-900 text-green-500 focus:ring-green-500"
                             checked={createRideForm.preferences[pref.key]}
                             onChange={(e) =>
-                              setCreateRideForm({
-                                ...createRideForm,
+                              setCreateRideForm((prev) => ({
+                                ...prev,
                                 preferences: {
-                                  ...createRideForm.preferences,
+                                  ...prev.preferences,
                                   [pref.key]: e.target.checked,
                                 },
-                              })
+                              }))
                             }
                           />
                           <span className="text-gray-300">{pref.label}</span>

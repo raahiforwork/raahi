@@ -16,13 +16,16 @@ interface Ride {
   id: string;
   from: string;
   to: string;
+  date: string;
   time: string;
   toTime?: string;
-  price: string;
+  price: number;
   availableSeats: number;
   totalSeats: number;
   createdByName: string;
   preferences: string[];
+  status: string
+  userId: string;
 }
 
 interface AvailableRidesListProps {

@@ -197,7 +197,7 @@ function RideMapWrapper({
   );
 }
 
-export async function getEstimatedArrivalTime(
+async function getEstimatedArrivalTime(
   from: string,
   to: string,
   departure: Date,

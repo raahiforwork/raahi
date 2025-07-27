@@ -79,7 +79,7 @@ type LatLng = {
   lng: number;
 };
 
-export async function geocodeAddress(address: string): Promise<LatLng> {
+async function geocodeAddress(address: string): Promise<LatLng> {
   return new Promise<LatLng>((resolve) => {
     if (typeof window === "undefined" || !window.google) {
       return resolve({ lat: 28.6139, lng: 77.209 });

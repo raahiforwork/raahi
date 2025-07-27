@@ -71,7 +71,6 @@ import { db } from "@/lib/firebase";
 import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 import AvailableRidesList from "@/components/dashboard/AvailableRidesList";
 
-const libraries = ["places"];
 const nunito = Nunito({ subsets: ["latin"], weight: ["400", "700"] });
 
 type LatLng = {
@@ -116,17 +115,19 @@ type RideMapWrapperProps = {
   onRideSelect: (ride: Ride) => void;
 };
 
+type Library = "places" | "drawing" | "geometry" | "visualization";
+
 function RideMapWrapper({
   rides,
   selectedRide,
   onRideSelect,
 }: RideMapWrapperProps) {
-  const libraries = ["places"] as const;
+  const libraries: Library[] = ["places"];
 
   const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: libraries as Library[],
-  });
+  googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+  libraries,
+});
 
   const [markers, setMarkers] = useState<{ id: number; position: LatLng }[]>(
     [],

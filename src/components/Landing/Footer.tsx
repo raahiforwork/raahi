@@ -42,7 +42,7 @@ const socialLinks = [
   { name: "Facebook", icon: Facebook, href: "#" },
   { name: "Twitter", icon: Twitter, href: "#" },
   { name: "Instagram", icon: Instagram, href: "#" },
-  { name: "LinkedIn", icon: Linkedin, href: "#" },
+  { name: "LinkedIn", icon: Linkedin, href: "https://www.linkedin.com/company/ridewithraahi/" },
 ];
 
 export default function Footer() {
@@ -99,11 +99,7 @@ export default function Footer() {
             <div className="space-y-3">
               <div className="flex items-center space-x-3">
                 <Mail className="h-4 w-4 text-carpool-500" />
-                <span className="text-sm">support@raahi.com</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <Phone className="h-4 w-4 text-carpool-500" />
-                <span className="text-sm">1-800-RAAHI</span>
+                <span className="text-sm">support@raahiforwork.com</span>
               </div>
               <div className="flex items-center space-x-3">
                 <MapPin className="h-4 w-4 text-carpool-500" />

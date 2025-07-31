@@ -134,13 +134,8 @@ export default function Features() {
 
         {/* Stats Section */}
         <div className="mt-16 text-center">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <StatCard
-              icon={Star}
-              value="4.9"
-              label="User Rating"
-              iconClass="text-yellow-500 fill-current"
-            />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+            
             <StatCard
               icon={Smartphone}
               value="99%"

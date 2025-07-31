@@ -80,7 +80,7 @@ export default function Hero() {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-3 gap-8 pt-8">
+          {/* <div className="grid grid-cols-3 gap-8 pt-8">
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <Users className="h-5 w-5 text-primary mr-2" />
@@ -102,7 +102,7 @@ export default function Hero() {
               </div>
               <p className="text-sm text-muted-foreground">Saved by Students</p>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Hero Card */}

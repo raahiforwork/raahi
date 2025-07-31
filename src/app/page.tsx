@@ -14,9 +14,9 @@ export default function HomePage() {
       <Hero />
       <Features />
       <HowItWorks />
-      <Stats />
+
       <FAQ />
-      <CTA />
+    
       <Footer />
     </main>
   );

@@ -120,7 +120,7 @@ export default function HowItWorks() {
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-carpool-600">
-                        10K+
+                        10+
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Happy Users

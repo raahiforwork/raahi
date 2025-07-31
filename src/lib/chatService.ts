@@ -12,6 +12,8 @@ import {
   getDocs,
   arrayUnion,
   getDoc,
+  deleteDoc,
+  arrayRemove,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { User } from "firebase/auth";
@@ -51,6 +53,7 @@ export interface ChatRoom {
     date: string;
     time: string;
   };
+  deletedFor?: string[]; // Add this line
 }
 
 export interface RideBooking {
@@ -89,6 +92,7 @@ class ChatService {
         },
         createdAt: serverTimestamp() as Timestamp,
         route: booking.route,
+        deletedFor: [], // Initialize empty array
       };
 
       const docRef = await addDoc(collection(db, "chatRooms"), chatRoomData);
@@ -111,6 +115,8 @@ class ChatService {
       await updateDoc(chatRoomRef, {
         participants: arrayUnion(userId),
         [`participantDetails.${userId}`]: userDetails,
+        // Remove user from deletedFor array if they're rejoining
+        deletedFor: arrayRemove(userId),
       });
     } catch (error) {
       console.error("Error joining chat room:", error);
@@ -139,6 +145,103 @@ class ChatService {
     }
   }
 
+  // Delete chat room for a specific user (soft delete)
+  async deleteChatForUser(chatRoomId: string, userId: string): Promise<void> {
+    try {
+      const chatRoomRef = doc(db, "chatRooms", chatRoomId);
+      const chatRoomDoc = await getDoc(chatRoomRef);
+
+      if (!chatRoomDoc.exists()) {
+        throw new Error("Chat room not found");
+      }
+
+      const chatRoomData = chatRoomDoc.data() as ChatRoom;
+      const participants = chatRoomData.participants || [];
+      const deletedFor = chatRoomData.deletedFor || [];
+
+      // Add current user to deletedFor array
+      const updatedDeletedFor = [...deletedFor, userId];
+
+      // Check if all participants have deleted the chat
+      const allParticipantsDeleted = participants.every((participantId: string) =>
+        updatedDeletedFor.includes(participantId)
+      );
+
+      if (allParticipantsDeleted) {
+        // If all participants deleted, remove the chat room completely
+        await this.permanentlyDeleteChat(chatRoomId);
+      } else {
+        // Soft delete: just add user to deletedFor array
+        await updateDoc(chatRoomRef, {
+          deletedFor: arrayUnion(userId),
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting chat for user:", error);
+      throw error;
+    }
+  }
+
+  // Permanently delete chat room and all its messages
+  async permanentlyDeleteChat(chatRoomId: string): Promise<void> {
+    try {
+      // Delete all messages in the chat room
+      const messagesQuery = query(
+        collection(db, "messages"),
+        where("chatRoomId", "==", chatRoomId)
+      );
+      
+      const messagesSnapshot = await getDocs(messagesQuery);
+      
+      // Delete messages in batches
+      const deletePromises = messagesSnapshot.docs.map(messageDoc =>
+        deleteDoc(messageDoc.ref)
+      );
+      
+      await Promise.all(deletePromises);
+
+      // Delete the chat room document
+      const chatRoomRef = doc(db, "chatRooms", chatRoomId);
+      await deleteDoc(chatRoomRef);
+    } catch (error) {
+      console.error("Error permanently deleting chat:", error);
+      throw error;
+    }
+  }
+
+  // Restore chat for user (remove from deletedFor array)
+  async restoreChatForUser(chatRoomId: string, userId: string): Promise<void> {
+    try {
+      const chatRoomRef = doc(db, "chatRooms", chatRoomId);
+      
+      await updateDoc(chatRoomRef, {
+        deletedFor: arrayRemove(userId),
+      });
+    } catch (error) {
+      console.error("Error restoring chat for user:", error);
+      throw error;
+    }
+  }
+
+  // Check if chat is deleted for a specific user
+  async isChatDeletedForUser(chatRoomId: string, userId: string): Promise<boolean> {
+    try {
+      const chatRoomDoc = await getDoc(doc(db, "chatRooms", chatRoomId));
+      
+      if (!chatRoomDoc.exists()) {
+        return true; // Chat doesn't exist, so it's "deleted"
+      }
+
+      const chatRoomData = chatRoomDoc.data() as ChatRoom;
+      const deletedFor = chatRoomData.deletedFor || [];
+      
+      return deletedFor.includes(userId);
+    } catch (error) {
+      console.error("Error checking if chat is deleted for user:", error);
+      return false;
+    }
+  }
+
   // Send a message to a chat room
   async sendMessage(
     chatRoomId: string,
@@ -159,6 +262,13 @@ class ChatService {
 
       if (!userDetails) {
         throw new Error("User not a participant of this chat");
+      }
+
+      // Check if user has deleted this chat
+      const deletedFor = chatRoomData.deletedFor || [];
+      if (deletedFor.includes(user.uid)) {
+        // Restore chat for user when they send a message
+        await this.restoreChatForUser(chatRoomId, user.uid);
       }
 
       // Create the message
@@ -217,7 +327,7 @@ class ChatService {
     });
   }
 
-  // Subscribe to user's chat rooms
+  // Subscribe to user's chat rooms (excluding deleted ones)
   subscribeToUserChatRooms(
     userId: string,
     callback: (chatRooms: ChatRoom[]) => void,
@@ -230,10 +340,16 @@ class ChatService {
     return onSnapshot(q, (querySnapshot) => {
       const chatRooms: ChatRoom[] = [];
       querySnapshot.forEach((doc) => {
-        chatRooms.push({
+        const chatRoomData = {
           id: doc.id,
           ...doc.data(),
-        } as ChatRoom);
+        } as ChatRoom;
+
+        // Filter out rooms where this user has deleted the chat
+        const deletedFor = chatRoomData.deletedFor || [];
+        if (!deletedFor.includes(userId)) {
+          chatRooms.push(chatRoomData);
+        }
       });
 
       // Sort by createdAt on the client side to avoid composite index requirement
@@ -262,6 +378,26 @@ class ChatService {
       return null;
     } catch (error) {
       console.error("Error getting chat room:", error);
+      throw error;
+    }
+  }
+
+
+  async getAllChatRooms(): Promise<ChatRoom[]> {
+    try {
+      const querySnapshot = await getDocs(collection(db, "chatRooms"));
+      const chatRooms: ChatRoom[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        chatRooms.push({
+          id: doc.id,
+          ...doc.data(),
+        } as ChatRoom);
+      });
+
+      return chatRooms;
+    } catch (error) {
+      console.error("Error getting all chat rooms:", error);
       throw error;
     }
   }

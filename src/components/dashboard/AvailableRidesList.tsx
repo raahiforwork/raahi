@@ -34,6 +34,7 @@ interface AvailableRidesListProps {
   onRideSelect: (ride: Ride) => void;
   onBook: (ride: Ride) => void;
   bookingLoading: string | null;
+  userBookedRides: string[];
 }
 
 export default function AvailableRidesList({

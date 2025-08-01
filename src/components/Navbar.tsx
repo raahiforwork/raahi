@@ -13,7 +13,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 const navigation = [
   { name: "How it Works", href: "#how-it-works" },
   { name: "Features", href: "#features" },
-  { name: "Pricing", href: "#pricing" },
+
   { name: "About", href: "#about" },
 ];
 

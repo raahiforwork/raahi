@@ -8,6 +8,7 @@ import { auth, db } from "@/lib/firebase";
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
+  updateProfile, 
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
@@ -82,6 +83,7 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
+ 
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         data.email,
@@ -90,13 +92,20 @@ export default function SignupPage() {
 
       const user = userCredential.user;
 
+   
+      await updateProfile(user, {
+        displayName: `${data.firstName} ${data.lastName}`,
+      });
+
       await sendEmailVerification(user);
+
 
       await setDoc(doc(db, "users", user.uid), {
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email.toLowerCase(),
         phone: data.phone,
+        displayName: `${data.firstName} ${data.lastName}`, 
         isVerified: false,
         createdAt: serverTimestamp(),
       });
@@ -118,6 +127,7 @@ export default function SignupPage() {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -238,12 +248,12 @@ export default function SignupPage() {
                 />
                 <Label htmlFor="agreeToTerms" className="text-sm">
                   I agree to the{" "}
-                  <Link href="/terms" className="text-primary hover:underline">
+                  <Link href="" className="text-primary hover:underline">
                     Terms
                   </Link>{" "}
                   and{" "}
                   <Link
-                    href="/privacy"
+                    href=""
                     className="text-primary hover:underline"
                   >
                     Privacy Policy

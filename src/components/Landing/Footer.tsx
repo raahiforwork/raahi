@@ -99,7 +99,7 @@ export default function Footer() {
             <div className="space-y-3">
               <div className="flex items-center space-x-3">
                 <Mail className="h-4 w-4 text-carpool-500" />
-                <span className="text-sm">support@raahiforwork.com</span>
+                <span className="text-sm">raahiforwork@gmail.com</span>
               </div>
               <div className="flex items-center space-x-3">
                 <MapPin className="h-4 w-4 text-carpool-500" />
@@ -175,7 +175,7 @@ export default function Footer() {
             </div>
 
             <p className="text-gray-400 text-sm">
-              © 2024 Raahi. All rights reserved.
+              © 2025 Raahi. All rights reserved.
             </p>
           </div>
         </div>

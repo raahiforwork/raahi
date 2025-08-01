@@ -3,13 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import {
-  Car,
-  MessageCircle,
-  Shield,
-  Star,
-  Users,
-} from "lucide-react";
+import { Car, MessageCircle, Shield, Star, Users } from "lucide-react";
 import React from "react";
 
 interface Ride {
@@ -18,13 +12,13 @@ interface Ride {
   to: string;
   date: string;
   time: string;
-  toTime?: string;
+  toTime: string;
   price: number;
   availableSeats: number;
   totalSeats: number;
   createdByName: string;
   preferences: string[];
-  status: string
+  status: string;
   userId: string;
 }
 
@@ -44,6 +38,14 @@ export default function AvailableRidesList({
   onBook,
   bookingLoading,
 }: AvailableRidesListProps) {
+  const formatToAmPm = (time24: string): string => {
+    const [hourStr, minute] = time24.split(":");
+    let hour = parseInt(hourStr, 10);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    hour = hour % 12 || 12;
+    return `${hour}:${minute} ${ampm}`;
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="text-xl font-semibold text-white flex items-center">
@@ -90,7 +92,7 @@ export default function AvailableRidesList({
               {/* Route Info */}
               <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                 <div className="text-center">
-                  <p className="font-medium text-white">{ride.time}</p>
+                  <span>{formatToAmPm(ride.time)}</span>
                   <p className="text-sm text-white/70 truncate">{ride.from}</p>
                 </div>
                 <div className="flex items-center justify-center">

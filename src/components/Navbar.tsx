@@ -68,7 +68,7 @@ export default function Navbar() {
 
         {/* Actions */}
         <div className="flex items-center space-x-3">
-          <ThemeToggle />
+          
           <div className="hidden md:flex items-center space-x-3">
             {isLoggedIn ? (
               <Button variant="ghost" size="sm" onClick={handleLogout}>

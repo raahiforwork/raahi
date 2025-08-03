@@ -105,10 +105,8 @@ export default function FAQ() {
               support team is here to help.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors">
-                Contact Support
-              </button>
-              <button className="px-6 py-3 border border-border rounded-lg font-medium hover:bg-muted transition-colors" onClick={() => window.open('https://linktr.ee/ridewithraahi', '_blank')}>
+             
+              <button className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors" onClick={() => window.open('https://linktr.ee/ridewithraahi', '_blank')}>
                 Join Community
               </button>
             </div>

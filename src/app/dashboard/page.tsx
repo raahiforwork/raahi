@@ -343,24 +343,21 @@ async function getEstimatedArrivalTime(
   }
 }
 
-function useUserRideHistory(userId: string) {
+function useUserRideHistory(userId: string | undefined) {
   const [rideHistory, setRideHistory] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
-
-    setLoading(true);
     async function fetchRideHistory() {
+      if (!userId) return;
+      setLoading(true);
       try {
         const rideHistoryRef = collection(db, "users", userId, "rideHistory");
         const querySnapshot = await getDocs(rideHistoryRef);
-
         const rides: Ride[] = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as Ride[];
-
         setRideHistory(rides);
       } catch (error) {
         console.error("Error fetching ride history:", error);
@@ -403,7 +400,7 @@ export default function ModernDashboard() {
   const [isBrowser, setIsBrowser] = useState(false);
   const [availableRides, setAvailableRides] = useState<Ride[]>([]);
   const [toTime, setToTime] = useState<string>("");
-  const { rideHistory, loading } = useUserRideHistory(user!.uid);
+  const { rideHistory, loading } = useUserRideHistory(user?.uid);
 
   const createFromRef = useRef<google.maps.places.Autocomplete | null>(null);
   const createToRef = useRef<google.maps.places.Autocomplete | null>(null);

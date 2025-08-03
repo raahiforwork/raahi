@@ -21,7 +21,6 @@ const footerLinks = {
   product: [
     { name: "How it Works", href: "#how-it-works" },
     { name: "Features", href: "#features" },
-    { name: "Pricing", href: "#pricing" },
     { name: "Safety", href: "#safety" },
   ],
   company: [
@@ -39,40 +38,13 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { name: "Facebook", icon: Facebook, href: "#" },
-  { name: "Twitter", icon: Twitter, href: "#" },
-  { name: "Instagram", icon: Instagram, href: "#" },
+  { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/ridewithraahi/#" },
   { name: "LinkedIn", icon: Linkedin, href: "https://www.linkedin.com/company/ridewithraahi/" },
 ];
 
 export default function Footer() {
   return (
     <footer className="bg-gray-900 text-gray-300">
-      {/* <div className="border-b border-gray-800">
-        <div className="container py-12">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <h3 className="text-2xl font-bold text-white mb-2">
-                Stay Updated
-              </h3>
-              <p className="text-gray-400">
-                Get the latest updates, tips, and exclusive offers delivered to
-                your inbox.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
-              />
-              <Button className="bg-carpool-600 hover:bg-carpool-700 whitespace-nowrap">
-                Subscribe
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div> */}
 
       {/* Main footer content */}
       <div className="container py-16">
@@ -83,7 +55,7 @@ export default function Footer() {
               <Image
                 src="/logo.png"
                 alt="Raahi Logo"
-                width={64} // Tailwind h-16/w-16 = 64px
+                width={64}
                 height={64}
                 className="object-contain"
               />

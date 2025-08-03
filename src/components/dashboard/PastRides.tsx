@@ -68,7 +68,7 @@ export default function PastRides({
         >
           {ride.status === "cancelled" && (
             <div className="flex justify-center mb-3">
-              <Badge className="bg-red-600 text-white text-lg px-6 py-2 font-bold shadow-md border-none animate-pulse">
+              <Badge className="bg-red-600 text-white text-lg px-6 py-2 font-bold shadow-md border-none hover:bg-red-600">
                 <span className="flex items-center gap-1">Cancelled</span>
               </Badge>
             </div>

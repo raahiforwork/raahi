@@ -134,7 +134,7 @@ export default function AvailableRidesList({
                   </Button>
                   <Button
                     size="sm"
-                    className="bg-gradient-to-r from-carpool-500 to-carpool-700 hover:from-carpool-600 hover:to-carpool-800"
+                    className="bg-gradient-to-r from-carpool-500 to-carpool-700 hover:from-carpool-600 hover:to-carpool-800 text-white"
                     onClick={() => onBook(ride)}
                     disabled={bookingLoading === ride.id}
                   >

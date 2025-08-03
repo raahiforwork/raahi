@@ -5,12 +5,66 @@ import { ArrowRight, Download, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
 export default function CTA() {
   const [mounted, setMounted] = React.useState(false);
+  // Same logic as your InstallButton component
+  const [deferredPrompt, setDeferredPrompt] = React.useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstallable, setIsInstallable] = React.useState(false);
+  const [isInstalled, setIsInstalled] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
+    
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+      return;
+    }
+
+    // Listen for beforeinstallprompt event
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setIsInstallable(true);
+    };
+
+    // Listen for app installed event
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setIsInstallable(false);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt');
+    }
+    
+    setDeferredPrompt(null);
+    setIsInstallable(false);
+  };
+
+  // Don't show the entire CTA section if already installed
+  if (isInstalled) return null;
 
   return (
     <section className="py-24 relative overflow-hidden">
@@ -68,6 +122,7 @@ export default function CTA() {
               </div>
             </div>
 
+            {/* Install Button - Only shows if installable */}
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
                 size="lg"
@@ -76,14 +131,19 @@ export default function CTA() {
                 Get Started Now
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="border-white text-white hover:bg-white hover:text-carpool-700 text-lg px-8 py-6"
-              >
-                <Download className="mr-2 h-5 w-5" />
-                Download App
-              </Button>
+              
+              {/* Only show install button if installable */}
+              {isInstallable && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="border-white text-white hover:bg-white hover:text-carpool-700 text-lg px-8 py-6"
+                  onClick={handleInstallClick}
+                >
+                  <Download className="mr-2 h-5 w-5" />
+                  Install App
+                </Button>
+              )}
             </div>
           </div>
 
@@ -100,14 +160,29 @@ export default function CTA() {
                       Download Our App
                     </h3>
                     <p className="text-gray-600">
-                      Available on iOS and Android
+                      Install for the best experience
                     </p>
                   </div>
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <span className="text-sm font-medium text-gray-700">
-                        iOS App Store
+                        Progressive Web App
+                      </span>
+                      <div className="flex items-center space-x-1">
+                        {[...Array(5)].map((_, i) => (
+                          <div
+                            key={i}
+                            className="w-3 h-3 bg-yellow-400 rounded-full"
+                          ></div>
+                        ))}
+                        <span className="text-sm text-gray-600 ml-2">5.0</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium text-gray-700">
+                        Works Offline
                       </span>
                       <div className="flex items-center space-x-1">
                         {[...Array(5)].map((_, i) => (
@@ -120,31 +195,21 @@ export default function CTA() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-sm font-medium text-gray-700">
-                        Google Play
-                      </span>
-                      <div className="flex items-center space-x-1">
-                        {[...Array(5)].map((_, i) => (
-                          <div
-                            key={i}
-                            className="w-3 h-3 bg-yellow-400 rounded-full"
-                          ></div>
-                        ))}
-                        <span className="text-sm text-gray-600 ml-2">4.8</span>
-                      </div>
-                    </div>
-
-                    <Button className="w-full bg-carpool-600 hover:bg-carpool-700 text-white">
-                      <Download className="mr-2 h-4 w-4" />
-                      Download Now
-                    </Button>
+                    {/* Only show install button if installable */}
+                    {isInstallable && (
+                      <Button 
+                        className="w-full bg-carpool-600 hover:bg-carpool-700 text-white"
+                        onClick={handleInstallClick}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Install Now
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-           
             {mounted && (
               <>
                 <div className="absolute -top-6 -left-6 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-medium shadow-lg animate-bounce">

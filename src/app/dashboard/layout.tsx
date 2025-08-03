@@ -1,14 +1,36 @@
-import type { ReactNode } from 'react';
-import  '../globals.css';
-import { AuthProvider } from '@/context/AuthContext';
+import type { Metadata } from 'next'
 
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export const metadata: Metadata = {
+  title: 'Raahi Dashboard',
+  description: 'A carpooling app that connects drivers and passengers for shared rides, making travel more efficient and eco-friendly.',
+  applicationName: 'Raahi',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Raahi',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  themeColor: '#000000',
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/icon-192x192.png',
+  },
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <div className="bg-gray-50 min-h-screen font-inter">
-      <AuthProvider>
+    <section>
+
       {children}
-      </AuthProvider>
-    </div>
-  );
+    </section>
+  )
 }

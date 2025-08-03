@@ -142,11 +142,10 @@ function RideMapWrapper({
   );
   const [directions, setDirections] =
     useState<google.maps.DirectionsResult | null>(null);
-  // Add these new state variables for user location
+
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
-  // Add this function to get user's current location
   const getCurrentLocation = () => {
     setIsLoadingLocation(true);
 
@@ -174,7 +173,7 @@ function RideMapWrapper({
     );
   };
 
-  // Add this useEffect to get user location on component mount
+
   useEffect(() => {
     getCurrentLocation();
   }, []);

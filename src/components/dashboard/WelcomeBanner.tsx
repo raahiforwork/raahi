@@ -1,3 +1,5 @@
+"use client";
+
 import { useAuth } from "@/context/AuthContext";
 import {
   Car,
@@ -14,9 +16,20 @@ import { useState, useEffect } from "react";
 
 export default function WelcomeBanner() {
   const { userProfile } = useAuth();
+
+
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1_000); // update every second
+    return () => clearInterval(id);
+  }, []);
+
+
   const [location, setLocation] = useState("Click to get location");
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const [locationPermission, setLocationPermission] = useState("prompt");
+  const [locationPermission, setLocationPermission] = useState<
+    "prompt" | "granted" | "denied"
+  >("prompt");
 
   const getCurrentLocationWithCityName = async () => {
     try {
@@ -92,8 +105,8 @@ export default function WelcomeBanner() {
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000,
+          timeout: 10_000,
+          maximumAge: 300_000,
         },
       );
     } catch (error) {
@@ -106,43 +119,47 @@ export default function WelcomeBanner() {
   useEffect(() => {
     if (navigator.permissions) {
       navigator.permissions.query({ name: "geolocation" }).then((result) => {
-        setLocationPermission(result.state);
+        setLocationPermission(result.state as "prompt" | "granted" | "denied");
         if (result.state === "granted") {
           getCurrentLocationWithCityName();
         }
       });
     }
   }, []);
+  /* ───────────────────────────────────────────── */
 
   return (
     <div className="relative overflow-hidden">
+      {/* blurred shapes */}
       <div className="absolute inset-0 bg-gradient-to-br from-green-900/20 via-blue-900/10 to-purple-900/20 rounded-3xl" />
       <div className="absolute top-0 right-0 w-32 h-32 bg-green-400/10 rounded-full blur-2xl animate-pulse" />
       <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-400/10 rounded-full blur-2xl animate-pulse delay-1000" />
 
+      {/* card */}
       <div className="relative bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-xl rounded-3xl border border-green-800/30 p-8 shadow-2xl">
+        {/* greeting */}
         <div className="text-center mb-8">
-          <div className="mb-4">
-            <h2 className="text-4xl lg:text-5xl font-bold text-white mb-3 leading-tight">
-              Welcome back,{" "}
-              <span className="bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text text-transparent animate-gradient-x">
-                {userProfile?.firstName || "Traveler"}
-              </span>
-              !
-            </h2>
-            <div className="flex items-center justify-center space-x-2 text-2xl"></div>
-          </div>
+          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-3 leading-tight">
+            Welcome back,{" "}
+            <span className="bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text text-transparent animate-gradient-x">
+              {userProfile?.firstName || "Traveler"}
+            </span>
+            !
+          </h2>
 
           <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto leading-relaxed">
             Ready for your next adventure? Find rides, share journeys, and
             connect with fellow travelers.
           </p>
         </div>
+
+        {/* chips */}
         <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+          {/* date */}
           <div className="flex items-center space-x-2 text-gray-300 bg-gray-800/30 px-4 py-2 rounded-full border border-gray-700/30">
             <Calendar className="h-4 w-4 text-green-400" />
             <span className="text-sm font-medium">
-              {new Date().toLocaleDateString("en-US", {
+              {now.toLocaleDateString("en-US", {
                 weekday: "long",
                 month: "short",
                 day: "numeric",
@@ -150,16 +167,19 @@ export default function WelcomeBanner() {
             </span>
           </div>
 
+          {/* live time */}
           <div className="flex items-center space-x-2 text-gray-300 bg-gray-800/30 px-4 py-2 rounded-full border border-gray-700/30">
             <Clock className="h-4 w-4 text-blue-400" />
             <span className="text-sm font-medium">
-              {new Date().toLocaleTimeString("en-US", {
+              {now.toLocaleTimeString("en-US", {
                 hour: "2-digit",
                 minute: "2-digit",
+                second: "2-digit",
               })}
             </span>
           </div>
 
+          {/* location */}
           <div
             className="flex items-center space-x-2 text-gray-300 bg-gray-800/30 px-4 py-2 rounded-full border border-gray-700/30 cursor-pointer hover:bg-gray-700/30 hover:border-gray-600/50 transition-all duration-300"
             onClick={() => {
@@ -182,6 +202,7 @@ export default function WelcomeBanner() {
           </div>
         </div>
 
+        {/* helper messages */}
         {locationPermission === "prompt" && (
           <div className="mt-4 text-center">
             <p className="text-gray-400 text-xs">
@@ -203,12 +224,13 @@ export default function WelcomeBanner() {
           <div className="mt-4 text-center">
             <div className="inline-flex items-center space-x-1 bg-green-500/20 text-green-300 px-3 py-1 rounded-full border border-green-500/30 text-xs">
               <Navigation className="h-3 w-3" />
-              <span>Precise GPS Location </span>
+              <span>Precise GPS Location</span>
             </div>
           </div>
         )}
       </div>
 
+      {/* gradient text animation */}
       <style jsx>{`
         @keyframes gradient-x {
           0%,

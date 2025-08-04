@@ -21,6 +21,7 @@ import {
   Car,
   Calendar,
   Filter,
+  Download,
   ArrowRight,
   Navigation,
   DollarSign,
@@ -371,7 +372,63 @@ function useUserRideHistory(userId: string | undefined) {
   return { rideHistory, loading };
 }
 
+
+
+
 export default function ModernDashboard() {
+  interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
+
+  const [deferredPrompt, setDeferredPrompt] = React.useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstallable, setIsInstallable] = React.useState(false);
+  const [isInstalled, setIsInstalled] = React.useState(false);
+
+React.useEffect(() => {
+    // Check if PWA 
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+      return;
+    }
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setIsInstallable(true);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setIsInstallable(false);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt');
+    }
+    
+    setDeferredPrompt(null);
+    setIsInstallable(false);
+  };
+
+
   const [userBookedRides, setUserBookedRides] = useState<string[]>([]);
   const [searchFrom, setSearchFrom] = useState("");
   const [searchTo, setSearchTo] = useState("");
@@ -917,7 +974,7 @@ export default function ModernDashboard() {
       </div>
 
       {/* Content Container */}
-      <div className="relative z-10 container mx-auto px-2 sm:px-4 py-4 sm:py-8 mt-4 md:mt-0 mb-20 md:mb-8">
+      <div className="relative z-10 container mx-auto px-2 sm:px-4 py-4 sm:py-8 mt-8 md:mt-4 mb-20 md:mb-6">
         <div className="bg-gray-900/50 backdrop-blur-xl rounded-2xl border border-green-800/30 overflow-hidden shadow-2xl">
           {/* Find Rides Content */}
           {activeTab === "find-rides" && (
@@ -1659,6 +1716,25 @@ export default function ModernDashboard() {
           />
         )}
       </div>
+
+
+      {/* ── PWA INSTALL (floats bottom-left) */}
+{isInstallable && !isInstalled && (
+  <div
+    className="fixed left-4 bottom-24 md:bottom-8 z-50"
+  >
+    <Button
+      onClick={handleInstallClick}
+      className="flex items-center gap-2 rounded-full bg-green-600 text-white
+                 hover:bg-green-700 shadow-lg hover:shadow-xl px-4 py-3
+                 transition-all duration-200"
+    >
+      <Download size={20} />
+      Install&nbsp;App
+    </Button>
+  </div>
+)}
+
     </div>
   );
 }

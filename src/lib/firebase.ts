@@ -42,19 +42,6 @@ export function getCurrentUser(): Promise<User | null> {
   });
 }
 
-// export async function getUserProfile(uid: string): Promise<DocumentData | null> {
-//   const ref = doc(db, 'users', uid);
-//   const snap = await getDoc(ref);
-//   return snap.exists() ? snap.data() : null;
-// }
-
-// export function onUserProfileChange(uid: string, callback: (profile: DocumentData | null) => void) {
-//   const ref = doc(db, 'users', uid);
-//   return onSnapshot(ref, (snap) => {
-//     callback(snap.exists() ? snap.data() : null);
-//   });
-// }
-
 export async function getActiveRides(): Promise<DocumentData[]> {
   const ridesRef = collection(db, 'rides');
   const q = query(
@@ -65,17 +52,6 @@ export async function getActiveRides(): Promise<DocumentData[]> {
   const snapshot = await getDocs(q);
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }
-
-// export async function getUserRides(uid: string): Promise<DocumentData[]> {
-//   const ridesRef = collection(db, 'rides');
-//   const q = query(
-//     ridesRef,
-//     where('driverId', '==', uid),
-//     orderBy('createdAt', 'desc')
-//   );
-//   const snapshot = await getDocs(q);
-//   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-// }
 
 export async function getUserBookings(uid: string): Promise<DocumentData[]> {
   const bookingsRef = collection(db, 'bookings');

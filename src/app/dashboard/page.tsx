@@ -398,8 +398,8 @@ async function getEstimatedArrivalTime(
                 minute: "2-digit",
               });
 
-              const formattedDate = arrivalTimestamp.toISOString().slice(0, 10); // YYYY-MM-DD format
-
+              const formattedDate = arrivalTimestamp.toLocaleDateString('en-CA');
+              
               resolve({ toTime: formattedTime, toDate: formattedDate });
             } else {
               resolve({ toTime: "Unknown", toDate: "Unknown" });
@@ -720,7 +720,7 @@ export default function ModernDashboard() {
     };
 
     fetchAvailableRides();
-  }, []);
+  },);
 
   useEffect(() => {
     if (!user) return;

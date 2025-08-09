@@ -32,9 +32,9 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      console.log('Logged out');
+      console.log("Logged out");
     } catch (error) {
-      console.error('Error logging out:', error);
+      console.error("Error logging out:", error);
     }
   };
 
@@ -42,16 +42,17 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <nav className="container flex h-16 items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2">
-          <Image
-            src="/logo.png"
-            alt="Raahi Logo"
-            width={48}
-            height={48}
-            className="object-fill"
-          />
-          <span className="text-xl font-bold gradient-text">Raahi</span>
-        </Link>
+        <Image
+          src="/logo.png"
+          alt="Raahi Logo"
+          width={32}
+          height={32}
+          style={{
+            width: "auto",
+            height: "32px",
+          }}
+          className="rounded-lg"
+        />
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8">
@@ -68,7 +69,6 @@ export default function Navbar() {
 
         {/* Actions */}
         <div className="flex items-center space-x-3">
-          
           <div className="hidden md:flex items-center space-x-3">
             {isLoggedIn ? (
               <Button variant="ghost" size="sm" onClick={handleLogout}>

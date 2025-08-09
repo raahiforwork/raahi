@@ -84,8 +84,8 @@ export default function WelcomeBanner() {
           }
         },
         (error) => {
-          console.error("Geolocation error code:", error.code);
-          console.error("Geolocation error message:", error.message);
+          // console.error("Geolocation error code:", error.code);
+          // console.error("Geolocation error message:", error.message);
           switch (error.code) {
             case error.PERMISSION_DENIED:
               setLocationPermission("denied");
@@ -110,7 +110,7 @@ export default function WelcomeBanner() {
         },
       );
     } catch (error) {
-      console.error("Location fetch error:", error);
+      // console.error("Location fetch error:", error);
       setLocation("Location error");
       setIsLoadingLocation(false);
     }

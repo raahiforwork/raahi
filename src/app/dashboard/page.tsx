@@ -1205,11 +1205,8 @@ export default function ModernDashboard() {
 
               {/* Enhanced Search Section */}
               <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-4 sm:p-6 lg:p-8 shadow-xl">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center mb-4 sm:mb-6 -ml-3">
-                  {/* <div className="p-2 sm:p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg mb-3 sm:mb-0">
-                    <Target className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                  </div> */}
-                  <div className="sm:ml-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center mb-4 sm:mb-6">
+                  <div className="sm:ml-0">
                     <h3 className="text-xl sm:text-2xl font-bold text-white">
                       Find Your Perfect Ride
                     </h3>
@@ -1219,10 +1216,11 @@ export default function ModernDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+                {/* Top Row - Three Input Fields */}
+                <div className="flex flex-wrap justify-center sm:justify-start lg:justify-center gap-3 sm:gap-4 lg:gap-6 mb-4">
                   {isBrowser && isLoaded ? (
                     <>
-                      <div className="relative group">
+                      <div className="relative group w-full sm:w-auto sm:flex-1 sm:max-w-sm lg:flex-none lg:w-full lg:max-w-sm">
                         <MapPin className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-green-400 z-10" />
                         <Autocomplete
                           onLoad={(ref) => (fromRef.current = ref)}
@@ -1230,14 +1228,14 @@ export default function ModernDashboard() {
                         >
                           <Input
                             placeholder="Pickup location"
-                            className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white placeholder:text-gray-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/20 rounded-xl transition-all duration-300 group-hover:border-green-500/50 text-sm sm:text-base"
+                            className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white placeholder:text-gray-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/20 rounded-xl transition-all duration-300 group-hover:border-green-500/50 text-sm sm:text-base w-full"
                             value={searchFrom}
                             onChange={(e) => setSearchFrom(e.target.value)}
                           />
                         </Autocomplete>
                       </div>
 
-                      <div className="relative group">
+                      <div className="relative group w-full sm:w-auto sm:flex-1 sm:max-w-sm lg:flex-none lg:w-full lg:max-w-sm">
                         <Navigation className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-blue-400 z-10" />
                         <Autocomplete
                           onLoad={(ref) => (toRef.current = ref)}
@@ -1245,7 +1243,7 @@ export default function ModernDashboard() {
                         >
                           <Input
                             placeholder="Drop-off location"
-                            className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all duration-300 group-hover:border-blue-500/50 text-sm sm:text-base"
+                            className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all duration-300 group-hover:border-blue-500/50 text-sm sm:text-base w-full"
                             value={searchTo}
                             onChange={(e) => setSearchTo(e.target.value)}
                           />
@@ -1254,94 +1252,85 @@ export default function ModernDashboard() {
                     </>
                   ) : (
                     <>
-                      <div className="relative">
+                      <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-sm lg:flex-none lg:w-full lg:max-w-sm">
                         <MapPin className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                         <Input
                           placeholder="Pickup location"
                           disabled
-                          className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-800/30 border-gray-700 text-white/40 rounded-xl text-sm sm:text-base"
+                          className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-800/30 border-gray-700 text-white/40 rounded-xl text-sm sm:text-base w-full"
                         />
                       </div>
-                      <div className="relative">
+                      <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-sm lg:flex-none lg:w-full lg:max-w-sm">
                         <Navigation className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                         <Input
                           placeholder="Drop-off location"
                           disabled
-                          className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-800/30 border-gray-700 text-white/40 rounded-xl text-sm sm:text-base"
+                          className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-800/30 border-gray-700 text-white/40 rounded-xl text-sm sm:text-base w-full"
                         />
                       </div>
                     </>
                   )}
 
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white rounded-xl hover:border-purple-500/50 transition-all duration-300 text-sm sm:text-base"
-                      >
-                        <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400 mr-2" />
-                        {customDateRange
-                          ? `${customDateRange.start} → ${customDateRange.end}`
-                          : "Pick dates"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-gray-800 border-gray-700 rounded-xl">
-                      <div className="p-3">
-                        <Calendar
-                          mode="range"
-                          onSelect={(
-                            range: { from?: Date; to?: Date } | undefined,
-                          ) => {
-                            if (!range?.from) {
-                              setCustomDateRange(null);
-                              return;
+                  {/* Date Picker */}
+                  <div className="w-full sm:w-auto sm:flex-1 sm:max-w-sm lg:flex-none lg:w-full lg:max-w-sm">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white rounded-xl hover:border-purple-500/50 transition-all duration-300 text-sm sm:text-base w-full"
+                        >
+                          <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400 mr-2" />
+                          {customDateRange
+                            ? customDateRange.start
+                            : "Pick date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-gray-800 border-gray-700 rounded-xl">
+                        <div className="p-3">
+                          <Calendar
+                            mode="single"
+                            selected={
+                              customDateRange
+                                ? new Date(customDateRange.start)
+                                : undefined
                             }
-                            const start = toYMD(range.from);
-                            const end = toYMD(range.to ?? range.from);
-                            setCustomDateRange({ start, end });
-                            setSelectedDate(undefined);
-                          }}
-                          className="rounded-md"
-                        />
-                        <div className="flex justify-end p-2 gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setCustomDateRange(null)}
-                          >
-                            Clear
-                          </Button>
-                          <Button size="sm" onClick={handleSearch}>
-                            Apply
-                          </Button>
+                            onSelect={(date: Date | undefined) => {
+                              if (!date) {
+                                setCustomDateRange(null);
+                                return;
+                              }
+                              const selectedDate = toYMD(date);
+                              setCustomDateRange({
+                                start: selectedDate,
+                                end: selectedDate,
+                              });
+                              setSelectedDate(undefined);
+                            }}
+                            className="rounded-md"
+                          />
+                          <div className="flex justify-end p-2 gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setCustomDateRange(null)}
+                            >
+                              Clear
+                            </Button>
+                            <Button size="sm" onClick={handleSearch}>
+                              Apply
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
 
-                  <Select
-                    value={selectedDate}
-                    onValueChange={(v) => {
-                      setSelectedDate(v);
-                      setCustomDateRange(null);
-                    }}
-                  >
-                    <SelectTrigger className="py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white rounded-xl hover:border-purple-500/50 transition-all duration-300 text-sm sm:text-base">
-                      <div className="flex items-center">
-                        <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400 mr-2" />
-                        <SelectValue placeholder="When are you traveling?" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-700 rounded-xl">
-                      <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="tomorrow">Tomorrow</SelectItem>
-                      <SelectItem value="this-week">This Week</SelectItem>
-                    </SelectContent>
-                  </Select>
-
+                {/* Bottom Row - Centered Action Buttons */}
+                <div className="flex justify-center gap-4">
                   <Button
                     onClick={handleSearch}
-                    className="py-3 sm:py-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-green-500/25 transition-all duration-300 transform hover:scale-105 col-span-1 sm:col-span-2 lg:col-span-1 text-sm sm:text-base"
+                    className="py-3 sm:py-4 px-6 sm:px-8 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-green-500/25 transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
                   >
                     <Search className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                     Search Rides
@@ -1365,7 +1354,7 @@ export default function ModernDashboard() {
                       setToMeta(null);
                     }}
                     variant="outline"
-                    className="py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white hover:bg-gray-700/50 hover:border-gray-500/50 rounded-xl transition-all duration-300 col-span-1 sm:col-span-2 lg:col-span-1 text-sm sm:text-base"
+                    className="py-3 sm:py-4 px-6 sm:px-8 bg-gray-800/50 border-gray-600/50 text-white hover:bg-gray-700/50 hover:border-gray-500/50 rounded-xl transition-all duration-300 text-sm sm:text-base"
                   >
                     <X className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                     Clear Filters

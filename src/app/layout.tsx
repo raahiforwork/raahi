@@ -6,6 +6,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/Landing/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
+import { ConsoleManager } from "@/components/ConsoleManager";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -33,9 +34,10 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
+            <ConsoleManager />
             {children}
-             <Analytics />
-             <SpeedInsights />
+            <Analytics />
+            <SpeedInsights />
             <Toaster />
           </ThemeProvider>
         </AuthProvider>

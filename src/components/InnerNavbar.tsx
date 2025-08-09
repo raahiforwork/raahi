@@ -8,15 +8,11 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 
-
-
 export default function InnerNavbar() {
   const [isOpen, setIsOpen] = React.useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
 
-
-  
   const handleLogout = async () => {
     await logout();
     router.push("/login");
@@ -31,9 +27,13 @@ export default function InnerNavbar() {
           <Image
             src="/logo.png"
             alt="Raahi Logo"
-            width={48}
-            height={48}
-            className="object-fill"
+            width={32}
+            height={32}
+            style={{
+              width: "auto",
+              height: "32px",
+            }}
+            className="rounded-lg"
           />
           <span className="text-xl font-bold gradient-text">Raahi</span>
         </Link>

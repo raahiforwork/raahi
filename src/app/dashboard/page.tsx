@@ -79,6 +79,7 @@ import { db } from "@/lib/firebase";
 import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 import AvailableRidesList from "@/components/dashboard/AvailableRidesList";
 import PastRides from "@/components/dashboard/PastRides";
+import { FaRupeeSign } from "react-icons/fa";
 
 const nunito = Nunito({ subsets: ["latin"], weight: ["400", "700"] });
 
@@ -120,7 +121,9 @@ export type Ride = {
   toDate: string;
   time: string;
   toTime: string;
-  price: number;
+  pricePerSeat?: number;
+  totalPrice?: number;
+  vehicleType: "cab" | "own";
   createdByName: string;
   preferences: string[];
   availableSeats: number;
@@ -398,8 +401,9 @@ async function getEstimatedArrivalTime(
                 minute: "2-digit",
               });
 
-              const formattedDate = arrivalTimestamp.toLocaleDateString('en-CA');
-              
+              const formattedDate =
+                arrivalTimestamp.toLocaleDateString("en-CA");
+
               resolve({ toTime: formattedTime, toDate: formattedDate });
             } else {
               resolve({ toTime: "Unknown", toDate: "Unknown" });
@@ -613,7 +617,9 @@ export default function ModernDashboard() {
     date: "",
     time: "",
     seats: "",
-    price: "",
+    totalPrice: "",
+    pricePerSeat: "",
+    vehicleType: "",
     preferences: {
       noSmoking: false,
       musicOk: false,
@@ -720,7 +726,7 @@ export default function ModernDashboard() {
     };
 
     fetchAvailableRides();
-  },);
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -836,48 +842,6 @@ export default function ModernDashboard() {
     return `${hour}:${minute} ${ampm}`;
   };
 
-  // const normalizedRide = useMemo(() => {
-  //   if (!createdRide) return null;
-
-  //   return {
-  //     id: createdRide.id,
-  //     from: createdRide.from,
-  //     to: createdRide.to,
-  //     date: createdRide.date,
-  //     time: createdRide.time,
-  //     toTime: createdRide.toTime,
-  //     price: createdRide.price,
-  //     createdByName: createdRide.createdByName,
-  //     preferences: createdRide.preferences || [],
-  //     availableSeats: createdRide.availableSeats,
-  //     totalSeats: createdRide.totalSeats,
-  //     status: createdRide.status,
-  //   };
-  // }, [createdRide]);
-
-  // useEffect(() => {
-  //   if (!isLoaded || !normalizedRide) return;
-
-  //   const { from, to, date, time: rideTime } = normalizedRide;
-
-  //   if (!from || !to || !date || !rideTime) return;
-
-  //   const departure = new Date(`${date}T${rideTime}`);
-  //   console.log("Departure time:", departure);
-
-  //   async function fetchArrivalTime() {
-  //     try {
-  //       const arrivalTime = await getEstimatedArrivalTime(from, to, departure);
-  //       console.log("Arrival Time", arrivalTime);
-  //       setToTime(arrivalTime);
-  //     } catch (err) {
-  //       console.error("Error estimating arrival time:", err);
-  //     }
-  //   }
-
-  //   fetchArrivalTime();
-  // }, [normalizedRide, isLoaded]);
-
   const handleBookRide = async (ride: Ride) => {
     if (!user) return;
 
@@ -959,24 +923,40 @@ export default function ModernDashboard() {
   };
 
   const handleCreateRide = async () => {
+    // Updated validation to check the correct fields based on vehicle type
+    const isPriceFieldValid =
+      createRideForm.vehicleType === "cab"
+        ? createRideForm.totalPrice
+        : createRideForm.pricePerSeat;
+
     if (
       !createRideForm.from ||
       !createRideForm.to ||
       !createRideForm.date ||
-      !createRideForm.time
+      !createRideForm.time ||
+      !createRideForm.vehicleType ||
+      !createRideForm.seats ||
+      !isPriceFieldValid
     ) {
       toast.error("Please fill in all required fields");
       return;
     }
+
     const departure = new Date(`${createRideForm.date}T${createRideForm.time}`);
     const { toTime, toDate } = await getEstimatedArrivalTime(
       createRideForm.from,
       createRideForm.to,
       departure,
     );
+
     try {
       const rideData = {
-        ...createRideForm,
+        from: createRideForm.from,
+        to: createRideForm.to,
+        date: createRideForm.date,
+        time: createRideForm.time,
+        seats: createRideForm.seats,
+        vehicleType: createRideForm.vehicleType,
         createdAt: serverTimestamp(),
         userId: user!.uid,
         createdBy: user!.uid,
@@ -991,6 +971,12 @@ export default function ModernDashboard() {
         preferences: Object.entries(createRideForm.preferences)
           .filter(([_, value]) => value)
           .map(([key]) => key),
+        ...(createRideForm.vehicleType === "cab" && {
+          totalPrice: parseFloat(createRideForm.totalPrice),
+        }),
+        ...(createRideForm.vehicleType === "own" && {
+          pricePerSeat: parseFloat(createRideForm.pricePerSeat),
+        }),
       };
 
       const docRef = await addDoc(collection(db, "Rides"), rideData);
@@ -1028,7 +1014,9 @@ export default function ModernDashboard() {
         date: "",
         time: "",
         seats: "",
-        price: "",
+        totalPrice: "",
+        pricePerSeat: "",
+        vehicleType: "",
         preferences: {
           noSmoking: false,
           musicOk: false,
@@ -1501,8 +1489,15 @@ export default function ModernDashboard() {
                       {/* Ride Details & Actions */}
                       <div className="flex flex-col items-center xl2:items-end space-y-4 sm:space-y-5 xl2:min-w-fit">
                         <div className="text-center xl2:text-right p-4 sm:p-5 rounded-xl w-full xl2:w-auto xl2:min-w-[200px]">
+                          <div className="text-xs text-gray-400 mb-1">
+                            {createdRide.vehicleType === "cab"
+                              ? "Total Fare"
+                              : "Per Seat"}
+                          </div>
                           <div className="text-2xl sm:text-3xl font-bold text-white mb-3">
-                            ₹{createdRide.price}
+                            {createdRide.vehicleType === "cab"
+                              ? `₹${createdRide.totalPrice}`
+                              : `₹${createdRide.pricePerSeat}`}
                           </div>
                           {(() => {
                             const isRideFull =
@@ -1794,26 +1789,69 @@ export default function ModernDashboard() {
                           </Select>
                         </div>
 
+                        {/* Vehicle Type Section */}
                         <div>
                           <label className="text-sm font-semibold text-green-400 mb-2 sm:mb-3 flex items-center">
-                            <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                            Price per Passenger
+                            <Car className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                            Vehicle Type
                           </label>
-                          <div className="relative group">
-                            <DollarSign className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400 z-10" />
-                            <Input
-                              placeholder="Enter price (₹)"
-                              className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white placeholder:text-gray-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/20 rounded-xl transition-all duration-300 text-sm sm:text-base"
-                              value={createRideForm.price}
-                              onChange={(e) =>
-                                setCreateRideForm({
-                                  ...createRideForm,
-                                  price: e.target.value,
-                                })
-                              }
-                            />
-                          </div>
+                          <Select
+                            value={createRideForm.vehicleType}
+                            onValueChange={(value) =>
+                              setCreateRideForm({
+                                ...createRideForm,
+                                vehicleType: value,
+                                // Reset both price fields when vehicle type changes
+                                totalPrice: "",
+                                pricePerSeat: "",
+                              })
+                            }
+                          >
+                            <SelectTrigger className="py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white rounded-xl hover:border-green-500/50 transition-all duration-300 text-sm sm:text-base">
+                              <SelectValue placeholder="Select vehicle type" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-gray-800 border-gray-700 rounded-xl">
+                              <SelectItem value="own">Own Vehicle</SelectItem>
+                              <SelectItem value="cab">Cab/Taxi</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
+
+                        {/* Conditional Pricing Section */}
+                        {createRideForm.vehicleType && (
+                          <div>
+                            <label className="text-sm font-semibold text-green-400 mb-2 sm:mb-3 flex items-center">
+                              <FaRupeeSign className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                              {createRideForm.vehicleType === "cab"
+                                ? "Total Price"
+                                : "Price per Passenger"}
+                            </label>
+                            <div className="relative group">
+                              <FaRupeeSign className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400 z-10" />
+                              <Input
+                                placeholder={
+                                  createRideForm.vehicleType === "cab"
+                                    ? "Enter total cab fare (₹)"
+                                    : "Enter price per passenger (₹)"
+                                }
+                                className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white placeholder:text-gray-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/20 rounded-xl transition-all duration-300 text-sm sm:text-base"
+                                value={
+                                  createRideForm.vehicleType === "cab"
+                                    ? createRideForm.totalPrice
+                                    : createRideForm.pricePerSeat
+                                }
+                                onChange={(e) =>
+                                  setCreateRideForm({
+                                    ...createRideForm,
+                                    [createRideForm.vehicleType === "cab"
+                                      ? "totalPrice"
+                                      : "pricePerSeat"]: e.target.value,
+                                  })
+                                }
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

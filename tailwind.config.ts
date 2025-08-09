@@ -104,6 +104,9 @@ export default {
         "fade-in": "fade-in 0.6s ease-out",
         "slide-in": "slide-in 0.6s ease-out",
       },
+      screens: {
+        'xl2': '1456px',
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

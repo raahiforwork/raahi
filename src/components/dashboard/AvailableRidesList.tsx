@@ -5,22 +5,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Car, MessageCircle, Shield, Star, Users } from "lucide-react";
 import React from "react";
-
-interface Ride {
-  id: string;
-  from: string;
-  to: string;
-  date: string;
-  time: string;
-  toTime: string;
-  price: number;
-  availableSeats: number;
-  totalSeats: number;
-  createdByName: string;
-  preferences: string[];
-  status: string;
-  userId: string;
-}
+import { Ride } from "@/app/dashboard/page";
 
 interface AvailableRidesListProps {
   rides: Ride[];
@@ -46,10 +31,45 @@ export default function AvailableRidesList({
     return `${hour}:${minute} ${ampm}`;
   };
 
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const dateOnly = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+    );
+    const todayOnly = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    );
+    const tomorrowOnly = new Date(
+      tomorrow.getFullYear(),
+      tomorrow.getMonth(),
+      tomorrow.getDate(),
+    );
+
+    if (dateOnly.getTime() === todayOnly.getTime()) {
+      return "Today";
+    } else if (dateOnly.getTime() === tomorrowOnly.getTime()) {
+      return "Tomorrow";
+    } else {
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year:
+          date.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="text-xl font-semibold text-white flex items-center">
-        <Shield className="h-5 w-5 mr-2 text-carpool-400" />
         Available Rides ({rides.length})
       </h3>
 
@@ -92,7 +112,13 @@ export default function AvailableRidesList({
               {/* Route Info */}
               <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                 <div className="text-center">
-                  <span>{formatToAmPm(ride.time)}</span>
+                  {/* Add date here */}
+                  <p className="text-xs text-green-400 font-medium mb-1">
+                    {formatDate(ride.date)}
+                  </p>
+                  <span className="text-white font-medium">
+                    {formatToAmPm(ride.time)}
+                  </span>
                   <p className="text-sm text-white/70 truncate">{ride.from}</p>
                 </div>
                 <div className="flex items-center justify-center">
@@ -105,6 +131,12 @@ export default function AvailableRidesList({
                   </div>
                 </div>
                 <div className="text-center">
+                  {/* Add arrival date here */}
+                  <p className="text-xs text-green-400 font-medium mb-1">
+                    {ride.toDate
+                      ? formatDate(ride.toDate)
+                      : formatDate(ride.date)}
+                  </p>
                   <p className="font-medium text-white">{ride.toTime || "—"}</p>
                   <p className="text-sm text-white/70 truncate">{ride.to}</p>
                 </div>

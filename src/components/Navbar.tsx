@@ -42,17 +42,20 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <nav className="container flex h-16 items-center justify-between">
         {/* Logo */}
-        <Image
-          src="/logo.png"
-          alt="Raahi Logo"
-          width={32}
-          height={32}
-          style={{
-            width: "auto",
-            height: "32px",
-          }}
-          className="rounded-lg"
-        />
+        <Link href="/" className="flex items-center space-x-2">
+          <Image
+            src="/logo.png"
+            alt="Raahi Logo"
+            width={32}
+            height={32}
+            style={{
+              width: "auto",
+              height: "32px",
+            }}
+            className="rounded-lg"
+          />
+          <span className="text-xl font-bold gradient-text">Raahi</span>
+        </Link>
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8">

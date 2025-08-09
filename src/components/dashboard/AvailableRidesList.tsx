@@ -1,10 +1,14 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Car, MessageCircle, Shield, Star, Users } from "lucide-react";
-import React from "react";
+import React, { useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import EnhancedRideCard from "../EnhancedRideCard";
 import { Ride } from "@/app/dashboard/page";
 
 interface AvailableRidesListProps {
@@ -16,185 +20,136 @@ interface AvailableRidesListProps {
   userBookedRides: string[];
 }
 
-export default function AvailableRidesList({
+const RIDES_PER_PAGE = 6;
+
+const AvailableRidesList: React.FC<AvailableRidesListProps> = ({
   rides,
   selectedRide,
   onRideSelect,
   onBook,
   bookingLoading,
-}: AvailableRidesListProps) {
-  const formatToAmPm = (time24: string): string => {
-    const [hourStr, minute] = time24.split(":");
-    let hour = parseInt(hourStr, 10);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    hour = hour % 12 || 12;
-    return `${hour}:${minute} ${ampm}`;
-  };
+  userBookedRides,
+}) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const availableRides = React.useMemo(() => {
+    return rides.filter(ride => ride.availableSeats > 0);
+  }, [rides]);
 
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
+  
+  const totalPages = Math.ceil(availableRides.length / RIDES_PER_PAGE);
+  const startIndex = (currentPage - 1) * RIDES_PER_PAGE;
+  const endIndex = startIndex + RIDES_PER_PAGE;
+  const currentRides = availableRides.slice(startIndex, endIndex);
 
-    const dateOnly = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-    );
-    const todayOnly = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate(),
-    );
-    const tomorrowOnly = new Date(
-      tomorrow.getFullYear(),
-      tomorrow.getMonth(),
-      tomorrow.getDate(),
-    );
-
-    if (dateOnly.getTime() === todayOnly.getTime()) {
-      return "Today";
-    } else if (dateOnly.getTime() === tomorrowOnly.getTime()) {
-      return "Tomorrow";
-    } else {
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year:
-          date.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
-      });
+  
+  React.useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
     }
-  };
+  }, [currentPage, totalPages]);
+
+  if (availableRides.length === 0) {
+    return (
+      <div className="text-center py-8 sm:py-12">
+        <div className="p-4 sm:p-6 bg-gradient-to-r from-gray-500/20 to-gray-600/20 rounded-2xl w-fit mx-auto mb-4 sm:mb-6">
+          <MapPin className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400" />
+        </div>
+        <h3 className="text-lg sm:text-xl font-semibold mb-2 text-white">No Available Trips</h3>
+        <p className="text-gray-400 max-w-md mx-auto text-sm sm:text-base px-4">
+          All trips are currently full or there are no trips matching your criteria. Check back later for new trips.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-xl font-semibold text-white flex items-center">
-        Available Rides ({rides.length})
-      </h3>
+    <div className="space-y-4 sm:space-y-6">
 
-      <div className="grid gap-4">
-        {rides.map((ride) => (
-          <div
+      <div className="flex items-center justify-between">
+        
+        {totalPages > 1 && (
+          <Badge variant="outline" className="border-gray-600 text-gray-300 text-sm">
+            Page {currentPage} of {totalPages}
+          </Badge>
+        )}
+      </div>
+
+  
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+        {currentRides.map((ride) => (
+          <EnhancedRideCard
             key={ride.id}
-            className={`bg-black rounded-lg border p-6 hover:border-green-600 transition-colors cursor-pointer ${
-              selectedRide?.id === ride.id
-                ? "border-green-500 ring-2 ring-green-500/20"
-                : "border-green-800"
-            }`}
-            onClick={() => onRideSelect(ride)}
-          >
-            <div className="flex flex-col lg:flex-row gap-6">
-              {/* Driver Info */}
-              <div className="flex items-center space-x-4">
-                <Avatar className="h-12 w-12 ring-2 ring-carpool-500">
-                  <AvatarImage src="" alt="avatar" />
-                  <AvatarFallback className="bg-gradient-to-br from-carpool-500 to-carpool-700 text-white">
-                    {ride.createdByName
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h4 className="font-semibold text-white">
-                      {ride.createdByName}
-                    </h4>
-                    <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
-                      <Shield className="h-3 w-3 mr-1" />
-                      Verified
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              {/* Route Info */}
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                <div className="text-center">
-                  {/* Add date here */}
-                  <p className="text-xs text-green-400 font-medium mb-1">
-                    {formatDate(ride.date)}
-                  </p>
-                  <span className="text-white font-medium">
-                    {formatToAmPm(ride.time)}
-                  </span>
-                  <p className="text-sm text-white/70 truncate">{ride.from}</p>
-                </div>
-                <div className="flex items-center justify-center">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-carpool-400 rounded-full" />
-                    <div className="w-16 h-px bg-gradient-to-r from-carpool-400 to-carpool-600" />
-                    <Car className="h-4 w-4 text-carpool-400" />
-                    <div className="w-16 h-px bg-gradient-to-r from-carpool-600 to-carpool-400" />
-                    <div className="w-2 h-2 bg-carpool-400 rounded-full" />
-                  </div>
-                </div>
-                <div className="text-center">
-                  {/* Add arrival date here */}
-                  <p className="text-xs text-green-400 font-medium mb-1">
-                    {ride.toDate
-                      ? formatDate(ride.toDate)
-                      : formatDate(ride.date)}
-                  </p>
-                  <p className="font-medium text-white">{ride.toTime || "—"}</p>
-                  <p className="text-sm text-white/70 truncate">{ride.to}</p>
-                </div>
-              </div>
-
-              {/* Booking Info */}
-              <div className="flex flex-col items-end space-y-2">
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-white">
-                    ₹{ride.price}
-                  </div>
-                  <div className="flex items-center text-sm text-white/70">
-                    <Users className="h-3 w-3 mr-1" />
-                    <span>
-                      {ride.availableSeats}/{ride.totalSeats} seats
-                    </span>
-                  </div>
-                </div>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-white/20 text-white/70 hover:text-white hover:bg-white/10"
-                  >
-                    <MessageCircle className="h-3 w-3 mr-1" />
-                    Chat
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="bg-gradient-to-r from-carpool-500 to-carpool-700 hover:from-carpool-600 hover:to-carpool-800 text-white"
-                    onClick={() => onBook(ride)}
-                    disabled={bookingLoading === ride.id}
-                  >
-                    {bookingLoading === ride.id ? "Booking..." : "Book Now"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Preferences */}
-            {ride.preferences?.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-white/10">
-                <div className="flex flex-wrap gap-2">
-                  {ride.preferences.map((pref, index) => (
-                    <Badge
-                      key={index}
-                      variant="outline"
-                      className="border-white/20 text-white/70"
-                    >
-                      {pref}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+            ride={ride}
+            onBook={onBook}
+            bookingLoading={bookingLoading}
+            userBookedRides={userBookedRides}
+            selectedRide={selectedRide}
+            onRideSelect={onRideSelect}
+          />
         ))}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center space-x-2 pt-4 sm:pt-6">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            <span className="hidden sm:inline">Previous</span>
+            <span className="sm:hidden">Prev</span>
+          </Button>
+
+          <div className="flex items-center space-x-1">
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+              let pageNumber;
+              if (totalPages <= 5) {
+                pageNumber = i + 1;
+              } else if (currentPage <= 3) {
+                pageNumber = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNumber = totalPages - 4 + i;
+              } else {
+                pageNumber = currentPage - 2 + i;
+              }
+
+              return (
+                <Button
+                  key={pageNumber}
+                  variant={currentPage === pageNumber ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentPage(pageNumber)}
+                  className={
+                    currentPage === pageNumber
+                      ? "bg-green-600 text-white"
+                      : "border-gray-600 text-gray-300 hover:bg-gray-700"
+                  }
+                >
+                  {pageNumber}
+                </Button>
+              );
+            })}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+          >
+            <span className="hidden sm:inline">Next</span>
+            <span className="sm:hidden">Next</span>
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default AvailableRidesList;

@@ -123,9 +123,22 @@ export default function PastRides({
             {/* Booking Info */}
             <div className="flex flex-col items-end space-y-2">
               <div className="text-right">
-                <div className="text-2xl font-bold text-white">
-                  ₹{ride.price}
+                <div className="text-right flex-shrink-0 min-w-[80px]">
+                  {/* Price Label */}
+                  <div className="text-xs text-gray-400 whitespace-nowrap mb-1">
+                    {ride.vehicleType === "cab"
+                      ? "Total Price"
+                      : "Price Per Seat"}
+                  </div>
+
+                  {/* Price Display */}
+                  <div className="text-lg sm:text-xl font-bold text-white">
+                    {ride.vehicleType === "cab"
+                      ? `₹${ride.totalPrice}`
+                      : `₹${ride.pricePerSeat}`}
+                  </div>
                 </div>
+
                 <div className="flex items-center text-sm text-white/70">
                   <Users className="h-3 w-3 mr-1" />
                   <span>

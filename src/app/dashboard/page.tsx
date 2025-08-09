@@ -130,6 +130,9 @@ export type Ride = {
   totalSeats: number;
   status: string;
   userId: string;
+  createdBy?: string;
+  seats?: number;
+  createdAt?: string;
 };
 
 type RideMapWrapperProps = {

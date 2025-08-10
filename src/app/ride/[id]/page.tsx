@@ -626,459 +626,467 @@ const RideDetailsPage = () => {
   const availabilityPercentage = (ride.availableSeats / ride.totalSeats) * 100;
 
   return (
-    <div
-      className={`min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900 ${nunito.className}`}
-    >
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-900/20 via-transparent to-transparent" />
-      <div className="absolute top-0 right-0 w-96 h-96 bg-green-500/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
+  <div
+    className={`min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900 ${nunito.className}`}
+  >
+    {/* Background decorative elements */}
+    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-900/20 via-transparent to-transparent" />
+    <div className="absolute top-0 right-0 w-96 h-96 bg-green-500/5 rounded-full blur-3xl" />
+    <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
 
-      <InnerNavbar />
+    <InnerNavbar />
 
-      <div className="relative z-10 container mx-auto px-4 py-6 sm:py-8 mt-16 sm:mt-20">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => router.push("/dashboard")}
-            className="text-gray-400 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
+    <div className="relative z-10 container mx-auto px-4 py-6 sm:py-8 mt-16 sm:mt-20">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+        <Button
+          variant="ghost"
+          onClick={() => router.push("/dashboard")}
+          className="text-gray-400 hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Dashboard
+        </Button>
 
-          <div className="flex items-center space-x-3">
-            {/* Cancel ride button for creators */}
-            {isCreator && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    disabled={cancellingRide}
-                    className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:border-red-500/70 transition-all duration-300"
-                  >
-                    {cancellingRide ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400 mr-2"></div>
-                        Cancelling...
-                      </>
-                    ) : (
-                      <>
-                        <Ban className="h-4 w-4 mr-2" />
-                        Cancel Ride
-                      </>
-                    )}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-white flex items-center">
-                      <AlertTriangle className="h-5 w-5 mr-2 text-red-400" />
-                      Cancel Your Ride
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-gray-400">
-                      Are you sure you want to cancel this ride? This will:
-                      <br />• Remove the ride from the platform
-                      <br />• Cancel all bookings for this ride
-                      <br />• Notify all booked passengers
-                      <br />• This action cannot be undone
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
-                      Keep Ride
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleCancelRide}
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                    >
+        <div className="flex items-center space-x-3">
+          {/* Cancel ride button for creators */}
+          {isCreator && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={cancellingRide}
+                  className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:border-red-500/70 transition-all duration-300"
+                >
+                  {cancellingRide ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400 mr-2"></div>
+                      Cancelling...
+                    </>
+                  ) : (
+                    <>
                       <Ban className="h-4 w-4 mr-2" />
                       Cancel Ride
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-
-            {/* Leave ride button for booked users (non-creators) */}
-            {isBooked && !isCreator && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    disabled={leavingRide}
-                    className="border-orange-500/50 text-orange-300 hover:bg-orange-500/10 hover:border-orange-500/70 transition-all duration-300"
+                    </>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-white flex items-center">
+                    <AlertTriangle className="h-5 w-5 mr-2 text-red-400" />
+                    Cancel Your Ride
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-gray-400">
+                    Are you sure you want to cancel this ride? This will:
+                    <br />• Remove the ride from the platform
+                    <br />• Cancel all bookings for this ride
+                    <br />• Notify all booked passengers
+                    <br />• This action cannot be undone
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                    Keep Ride
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleCancelRide}
+                    className="bg-red-600 hover:bg-red-700 text-white"
                   >
-                    {leavingRide ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-400 mr-2"></div>
-                        Leaving...
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Leave Ride
-                      </>
-                    )}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-white flex items-center">
-                      <AlertTriangle className="h-5 w-5 mr-2 text-orange-400" />
-                      Leave This Ride?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-gray-400">
-                      Are you sure you want to leave this ride? This action will
-                      free up your seat for other travelers.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
-                      Stay in Ride
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleLeaveRide}
-                      className="bg-orange-600 hover:bg-orange-700 text-white"
-                    >
+                    <Ban className="h-4 w-4 mr-2" />
+                    Cancel Ride
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+
+          {/* Leave ride button for booked users (non-creators) */}
+          {isBooked && !isCreator && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={leavingRide}
+                  className="border-orange-500/50 text-orange-300 hover:bg-orange-500/10 hover:border-orange-500/70 transition-all duration-300"
+                >
+                  {leavingRide ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-400 mr-2"></div>
+                      Leaving...
+                    </>
+                  ) : (
+                    <>
                       <XCircle className="h-4 w-4 mr-2" />
                       Leave Ride
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
+                    </>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-white flex items-center">
+                    <AlertTriangle className="h-5 w-5 mr-2 text-orange-400" />
+                    Leave This Ride?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-gray-400">
+                    Are you sure you want to leave this ride? This action will
+                    free up your seat for other travelers.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                    Stay in Ride
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleLeaveRide}
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Leave Ride
+                  </AlertDialogAction>
+                </AlertDialogFooter>
                 </AlertDialogContent>
-              </AlertDialog>
-            )}
+            </AlertDialog>
+          )}
 
-            {/* Book ride button for non-creators */}
-            {!isBooked && !isCreator && (
-              <Button
-                onClick={handleBookRide}
-                disabled={bookingLoading || ride.availableSeats <= 0}
-                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold shadow-lg hover:shadow-green-500/25 transition-all duration-300"
-              >
-                {bookingLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Booking...
-                  </>
-                ) : ride.availableSeats <= 0 ? (
-                  "Trip Full"
-                ) : (
-                  <>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Book Ride
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </>
-                )}
-              </Button>
-            )}
+          {/* Book ride button for non-creators */}
+          {!isBooked && !isCreator && (
+            <Button
+              onClick={handleBookRide}
+              disabled={bookingLoading || ride.availableSeats <= 0}
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold shadow-lg hover:shadow-green-500/25 transition-all duration-300"
+            >
+              {bookingLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Booking...
+                </>
+              ) : ride.availableSeats <= 0 ? (
+                "Trip Full"
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Book Ride
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </>
+              )}
+            </Button>
+          )}
 
-            {/* Chat button for booked users or creators */}
-            {(isBooked || isCreator) && (
-              <Button
-                onClick={async () => {
-                  if (!user?.uid) {
-                    toast.error("Please log in to access chat");
+          {/* Chat button for booked users or creators */}
+          {(isBooked || isCreator) && (
+            <Button
+              onClick={async () => {
+                if (!user?.uid) {
+                  toast.error("Please log in to access chat");
+                  return;
+                }
+
+                try {
+                  const chatRoomId = await chatService.findChatRoomByRide(
+                    ride.id,
+                  );
+
+                  if (!chatRoomId) {
+                    toast.error("Chat room not found for this ride");
                     return;
                   }
 
-                  try {
-                    const chatRoomId = await chatService.findChatRoomByRide(
-                      ride.id,
-                    );
+                  const chatRoom = await chatService.getChatRoom(chatRoomId);
+                  const isInParticipants = chatRoom?.participants?.includes(
+                    user.uid,
+                  );
+                  const isDeletedForUser = chatRoom?.deletedFor?.includes(
+                    user.uid,
+                  );
 
-                    if (!chatRoomId) {
-                      toast.error("Chat room not found for this ride");
-                      return;
-                    }
+                  const needsToRejoin = !isInParticipants || isDeletedForUser;
 
-                    const chatRoom = await chatService.getChatRoom(chatRoomId);
-                    const isInParticipants = chatRoom?.participants?.includes(
+                  if (needsToRejoin && userProfile) {
+                    const userDetails = {
+                      firstName:
+                        userProfile?.firstName ||
+                        user.displayName?.split(" ")[0] ||
+                        "Anonymous",
+                      lastName:
+                        userProfile?.lastName ||
+                        user.displayName?.split(" ")[1] ||
+                        "",
+                      email: user.email || "",
+                      phone: userProfile?.phone || undefined,
+                    };
+
+                    await chatService.addUserToChatRoom(
+                      chatRoomId,
                       user.uid,
+                      userDetails,
                     );
-                    const isDeletedForUser = chatRoom?.deletedFor?.includes(
-                      user.uid,
-                    );
-
-                    const needsToRejoin = !isInParticipants || isDeletedForUser;
-
-                    if (needsToRejoin && userProfile) {
-                      const userDetails = {
-                        firstName:
-                          userProfile?.firstName ||
-                          user.displayName?.split(" ")[0] ||
-                          "Anonymous",
-                        lastName:
-                          userProfile?.lastName ||
-                          user.displayName?.split(" ")[1] ||
-                          "",
-                        email: user.email || "",
-                        phone: userProfile?.phone || undefined,
-                      };
-
-                      await chatService.addUserToChatRoom(
-                        chatRoomId,
-                        user.uid,
-                        userDetails,
-                      );
-                      toast.success("Rejoined chat successfully!");
-                    }
-
-                    router.push("/chat");
-                  } catch (error) {
-                    console.error("Error accessing chat:", error);
-                    toast.error("Failed to access chat. Please try again.");
+                    toast.success("Rejoined chat successfully!");
                   }
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Chat
-              </Button>
-            )}
-          </div>
+
+                  router.push("/chat");
+                } catch (error) {
+                  console.error("Error accessing chat:", error);
+                  toast.error("Failed to access chat. Please try again.");
+                }
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Chat
+            </Button>
+          )}
         </div>
+      </div>
 
-        {/* Rest of your JSX remains exactly the same */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6 sm:space-y-8">
-            {/* Trip Overview */}
-            <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-4 sm:p-6 shadow-xl">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4 sm:mb-6">
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-xl sm:text-2xl font-bold text-white mb-4 break-words leading-tight">
-                    {ride.from}
-                  </h1>
-                  <div className="text-lg sm:text-xl text-gray-300 mb-4 break-words leading-tight">
-                    → {ride.to}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-gray-400 text-sm">
-                    <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-1" />
-                      <span>{ride.date}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-1" />
-                      <span>From {formatToAmPm(ride.time)}</span>
-                    </div>
-                    {ride.toTime && ride.toTime !== "Unknown" && (
-                      <div className="flex items-center">
-                        <Timer className="h-4 w-4 mr-1" />
-                        <span>
-                          Arrives {formatToAmPm(ride.toTime)} | {ride.toDate}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+      {/* Rest of your JSX remains exactly the same */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6 sm:space-y-8">
+          {/* Trip Overview */}
+          <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-4 sm:p-6 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4 sm:mb-6">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-white mb-4 break-words leading-tight">
+                  {ride.from}
+                </h1>
+                <div className="text-lg sm:text-xl text-gray-300 mb-4 break-words leading-tight">
+                  → {ride.to}
                 </div>
-
-                <div className="text-center sm:text-right flex-shrink-0">
-                  <div className="text-2xl sm:text-3xl font-bold text-white mb-1">
-                    ₹
-                    {ride.vehicleType === "cab"
-                      ? ride.totalPrice
-                      : ride.pricePerSeat}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-gray-400 text-sm">
+                  <div className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    <span>{ride.date}</span>
                   </div>
-                  <div className="text-sm text-gray-400 mb-2">per person</div>
-                  {availabilityPercentage <= 25 &&
-                  availabilityPercentage > 0 ? (
-                    <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30">
-                      <Timer className="h-3 w-3 mr-1" />
-                      Almost Full
-                    </Badge>
-                  ) : availabilityPercentage === 0 ? (
-                    <Badge className="bg-red-500/20 text-red-300 border-red-500/30">
-                      Fully Booked
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
-                      <Users className="h-3 w-3 mr-1" />
-                      Open
-                    </Badge>
+                  <div className="flex items-center">
+                    <Clock className="h-4 w-4 mr-1" />
+                    <span>From {formatToAmPm(ride.time)}</span>
+                  </div>
+                  {ride.toTime && ride.toTime !== "Unknown" && (
+                    <div className="flex items-center">
+                      <Timer className="h-4 w-4 mr-1" />
+                      <span>
+                        Arrives {formatToAmPm(ride.toTime)} | {ride.toDate}
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* Route Visual */}
-              <div className="bg-gray-800/30 rounded-xl p-4 sm:p-6 border border-gray-700/20 mb-6">
-                <div className="flex flex-col space-y-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-4 h-4 bg-green-400 rounded-full mt-1 animate-pulse flex-shrink-0"></div>
-                    <div className="flex-1">
-                      <div className="font-medium text-white mb-1">
-                        {formatToAmPm(ride.time)} | {ride.date} | Pickup
-                      </div>
-                      <div className="text-sm text-gray-300 break-words leading-relaxed">
-                        {ride.from}
-                      </div>
+              <div className="text-center sm:text-right flex-shrink-0">
+                <div className="text-2xl sm:text-3xl font-bold text-white mb-1">
+                  ₹
+                  {ride.vehicleType === "cab"
+                    ? ride.totalPrice
+                    : ride.pricePerSeat}
+                </div>
+                <div className="text-sm text-gray-400 mb-2">per person</div>
+                {availabilityPercentage <= 25 &&
+                availabilityPercentage > 0 ? (
+                  <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30">
+                    <Timer className="h-3 w-3 mr-1" />
+                    Almost Full
+                  </Badge>
+                ) : availabilityPercentage === 0 ? (
+                  <Badge className="bg-red-500/20 text-red-300 border-red-500/30">
+                    Fully Booked
+                  </Badge>
+                ) : (
+                  <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+                    <Users className="h-3 w-3 mr-1" />
+                    Open
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Route Visual */}
+            <div className="bg-gray-800/30 rounded-xl p-4 sm:p-6 border border-gray-700/20 mb-6">
+              <div className="flex flex-col space-y-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-4 h-4 bg-green-400 rounded-full mt-1 animate-pulse flex-shrink-0"></div>
+                  <div className="flex-1">
+                    <div className="font-medium text-white mb-1">
+                      {formatToAmPm(ride.time)} | {ride.date} | Pickup
+                    </div>
+                    <div className="text-sm text-gray-300 break-words leading-relaxed">
+                      {ride.from}
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex items-center space-x-3 pl-2">
-                    <div className="w-px h-8 bg-gradient-to-b from-green-400 via-blue-400 to-purple-400"></div>
-                    <Car className="h-5 w-5 text-blue-400" />
-                    <span className="text-sm text-gray-400">Travel route</span>
-                  </div>
+                <div className="flex items-center space-x-3 pl-2">
+                  <div className="w-px h-8 bg-gradient-to-b from-green-400 via-blue-400 to-purple-400"></div>
+                  <Car className="h-5 w-5 text-blue-400" />
+                  <span className="text-sm text-gray-400">Travel route</span>
+                </div>
 
-                  <div className="flex items-start space-x-3">
-                    <div className="w-4 h-4 bg-purple-400 rounded-full mt-1 animate-pulse flex-shrink-0"></div>
-                    <div className="flex-1">
-                      <div className="font-medium text-white mb-1">
-                        {ride.toTime !== "Unknown" ? `${formatToAmPm(ride.toTime)} | ` : ""}
-                        {ride.toDate} | Drop-off
-                      </div>
-                      <div className="text-sm text-gray-300 break-words leading-relaxed">
-                        {ride.to}
-                      </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-4 h-4 bg-purple-400 rounded-full mt-1 animate-pulse flex-shrink-0"></div>
+                  <div className="flex-1">
+                    <div className="font-medium text-white mb-1">
+                      {ride.toTime !== "Unknown" ? `${formatToAmPm(ride.toTime)} | ` : ""}
+                      {ride.toDate} | Drop-off
+                    </div>
+                    <div className="text-sm text-gray-300 break-words leading-relaxed">
+                      {ride.to}
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Preferences */}
-              {ride.preferences && ride.preferences.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                    <Car className="h-5 w-5 mr-2 text-blue-400" />
-                    Trip Preferences
-                  </h3>
-                  <div className="flex flex-wrap gap-2 sm:gap-3">
-                    {ride.preferences.map((pref, index) => (
-                      <Badge
-                        key={index}
-                        variant="outline"
-                        className="border-green-500/30 bg-green-500/10 text-green-300 px-3 py-2"
-                      >
-                        {pref}
-                      </Badge>
-                    ))}
+            {/* Preferences */}
+            {ride.preferences && ride.preferences.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                  <Car className="h-5 w-5 mr-2 text-blue-400" />
+                  Trip Preferences
+                </h3>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                  {ride.preferences.map((pref, index) => (
+                    <Badge
+                      key={index}
+                      variant="outline"
+                      className="border-green-500/30 bg-green-500/10 text-green-300 px-3 py-2"
+                    >
+                      {pref}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Map */}
+          <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-4 sm:p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+              <MapPin className="h-5 w-5 mr-2 text-green-400" />
+              Route Map
+            </h3>
+            <div className="rounded-xl overflow-hidden border border-gray-700/50 h-64 sm:h-96">
+              {isLoaded ? (
+                <GoogleMap
+                  mapContainerStyle={{ height: "100%", width: "100%" }}
+                  center={{ lat: 28.6139, lng: 77.209 }}
+                  zoom={10}
+                >
+                  {directions && (
+                    <DirectionsRenderer directions={directions} />
+                  )}
+                </GoogleMap>
+              ) : (
+                <div className="h-full flex items-center justify-center bg-gray-800/30">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-2"></div>
+                    <p className="text-gray-400">Loading map...</p>
                   </div>
                 </div>
               )}
             </div>
+          </div>
+        </div>
 
-            {/* Map */}
-            <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-4 sm:p-6 shadow-xl">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                <MapPin className="h-5 w-5 mr-2 text-green-400" />
-                Route Map
-              </h3>
-              <div className="rounded-xl overflow-hidden border border-gray-700/50 h-64 sm:h-96">
-                {isLoaded ? (
-                  <GoogleMap
-                    mapContainerStyle={{ height: "100%", width: "100%" }}
-                    center={{ lat: 28.6139, lng: 77.209 }}
-                    zoom={10}
-                  >
-                    {directions && (
-                      <DirectionsRenderer directions={directions} />
-                    )}
-                  </GoogleMap>
-                ) : (
-                  <div className="h-full flex items-center justify-center bg-gray-800/30">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-2"></div>
-                      <p className="text-gray-400">Loading map...</p>
-                    </div>
-                  </div>
-                )}
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Trip Organizer Info - Make Clickable */}
+          <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-4 sm:p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Trip Organizer
+            </h3>
+
+            <div 
+              className="flex items-center space-x-4 cursor-pointer hover:bg-green-500/5 p-2 rounded-lg transition-colors"
+              onClick={() => router.push(`/profile/${ride.createdBy || ride.userId}`)}
+            >
+              <Avatar className="h-14 w-14 sm:h-16 sm:w-16 ring-4 ring-green-500/30">
+                <AvatarFallback className="bg-gradient-to-br from-green-500 to-green-600 text-white text-lg sm:text-xl font-bold">
+                  {ride.createdByName
+                    ?.split(" ")
+                    .map((n) => n[0])
+                    .join("") || "T"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-lg sm:text-xl font-bold text-white truncate hover:text-green-300 transition-colors">
+                  {ride.createdByName}
+                </h4>
+                <Badge className="bg-green-500/20 text-green-300 border-green-500/30 mt-1">
+                  <Car className="h-3 w-3 mr-1" />
+                  Organizer
+                </Badge>
               </div>
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Trip Organizer Info */}
-            <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-4 sm:p-6 shadow-xl">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Trip Organizer
-              </h3>
+          {/* Participants Info */}
+          <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-4 sm:p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+              <Users className="h-5 w-5 mr-2 text-blue-400" />
+              Travelers ({participants.length + 1}/{ride.totalSeats})
+            </h3>
 
-              <div className="flex items-center space-x-4">
-                <Avatar className="h-14 w-14 sm:h-16 sm:w-16 ring-4 ring-green-500/30">
-                  <AvatarFallback className="bg-gradient-to-br from-green-500 to-green-600 text-white text-lg sm:text-xl font-bold">
-                    {ride.createdByName
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("") || "T"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <h4 className="text-lg sm:text-xl font-bold text-white truncate">
+            {/* Trip Organizer - Make clickable */}
+            <div 
+              className="flex items-center space-x-3 p-3 bg-green-500/10 rounded-xl border border-green-500/20 mb-3 cursor-pointer hover:bg-green-500/15 transition-colors"
+              onClick={() => router.push(`/profile/${ride.createdBy || ride.userId}`)}
+            >
+              <Avatar className="h-10 w-10 ring-2 ring-green-500/30">
+                <AvatarFallback className="bg-gradient-to-br from-green-500 to-green-600 text-white font-bold text-sm">
+                  {ride.createdByName
+                    ?.split(" ")
+                    .map((n) => n[0])
+                    .join("") || "T"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium text-white text-sm truncate hover:text-green-300 transition-colors">
                     {ride.createdByName}
-                  </h4>
-                  <Badge className="bg-green-500/20 text-green-300 border-green-500/30 mt-1">
-                    <Car className="h-3 w-3 mr-1" />
+                  </span>
+                  <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30 text-xs">
+                    <Crown className="h-3 w-3 mr-1" />
                     Organizer
                   </Badge>
                 </div>
+                <p className="text-xs text-gray-400">Trip Creator</p>
               </div>
             </div>
 
-            {/* Participants Info */}
-            <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-4 sm:p-6 shadow-xl">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                <Users className="h-5 w-5 mr-2 text-blue-400" />
-                Travelers ({participants.length + 1}/{ride.totalSeats})
-              </h3>
-
-              {/* Trip Organizer */}
-              <div className="flex items-center space-x-3 p-3 bg-green-500/10 rounded-xl border border-green-500/20 mb-3">
-                <Avatar className="h-10 w-10 ring-2 ring-green-500/30">
-                  <AvatarFallback className="bg-gradient-to-br from-green-500 to-green-600 text-white font-bold text-sm">
-                    {ride.createdByName
-                      ?.split(" ")
+            {/* Participants - Make clickable */}
+            {participants.map((participant) => (
+              <div
+                key={participant.id}
+                className="flex items-center space-x-3 p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 mb-3 cursor-pointer hover:bg-blue-500/15 transition-colors"
+                onClick={() => router.push(`/profile/${participant.userId}`)}
+              >
+                <Avatar className="h-10 w-10 ring-2 ring-blue-500/30">
+                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-sm">
+                    {participant.name
+                      .split(" ")
                       .map((n) => n[0])
-                      .join("") || "T"}
+                      .join("")}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2">
-                    <span className="font-medium text-white text-sm truncate">
-                      {ride.createdByName}
+                    <span className="font-medium text-white text-sm truncate hover:text-blue-300 transition-colors">
+                      {participant.name}
                     </span>
-                    <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30 text-xs">
-                      <Crown className="h-3 w-3 mr-1" />
-                      Organizer
+                    <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs">
+                      <UserCheck className="h-3 w-3 mr-1" />
+                      Joined
                     </Badge>
                   </div>
-                  <p className="text-xs text-gray-400">Trip Creator</p>
+                  <p className="text-xs text-gray-400">
+                    Joined {participant.joinedAt}
+                  </p>
                 </div>
-              </div>
 
-              {/* Participants with remove option for creators */}
-              {participants.map((participant) => (
-                <div
-                  key={participant.id}
-                  className="flex items-center space-x-3 p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 mb-3"
-                >
-                  <Avatar className="h-10 w-10 ring-2 ring-blue-500/30">
-                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-sm">
-                      {participant.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-white text-sm truncate">
-                        {participant.name}
-                      </span>
-                      <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs">
-                        <UserCheck className="h-3 w-3 mr-1" />
-                        Joined
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-gray-400">
-                      Joined {participant.joinedAt}
-                    </p>
-                  </div>
-
-                  {/* Remove user button - only for creators */}
-                  {isCreator && (
+                {/* Remove user button - only for creators */}
+                {isCreator && (
+                  <div onClick={(e) => e.stopPropagation()}>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
@@ -1120,32 +1128,32 @@ const RideDetailsPage = () => {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                  )}
-                </div>
-              ))}
+                  </div>
+                )}
+              </div>
+            ))}
 
-              {/* Empty seats */}
-              {Array.from({ length: ride.availableSeats }, (_, i) => (
-                <div
-                  key={`empty-${i}`}
-                  className="flex items-center space-x-3 p-3 bg-gray-700/20 rounded-xl border border-gray-600/20 mb-3"
-                >
-                  <div className="h-10 w-10 rounded-full border-2 border-dashed border-gray-500 flex items-center justify-center">
-                    <Users className="h-4 w-4 text-gray-500" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-gray-500 text-sm">
-                      Available seat
-                    </span>
-                  </div>
+            {/* Empty seats */}
+            {Array.from({ length: ride.availableSeats }, (_, i) => (
+              <div
+                key={`empty-${i}`}
+                className="flex items-center space-x-3 p-3 bg-gray-700/20 rounded-xl border border-gray-600/20 mb-3"
+              >
+                <div className="h-10 w-10 rounded-full border-2 border-dashed border-gray-500 flex items-center justify-center">
+                  <Users className="h-4 w-4 text-gray-500" />
                 </div>
-              ))}
-            </div>
+                <div className="flex-1">
+                  <span className="text-gray-500 text-sm">
+                    Available seat
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
     </div>
-  );
-};
-
+  </div>
+);
+}
 export default RideDetailsPage;

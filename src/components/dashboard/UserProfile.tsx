@@ -7,12 +7,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { User, Shield, Star, MessageCircle, Activity } from "lucide-react";
+import { User, Shield, Star, MessageCircle, Activity, Car, Users, Clock, Trophy } from "lucide-react";
 import {
   collection,
   query,
   where,
   getCountFromServer,
+  getDocs,
 } from "firebase/firestore";
 
 interface UserProfileData {
@@ -23,6 +24,122 @@ interface UserProfileData {
   isVerified: boolean;
   createdAt: any;
 }
+
+interface TravelStats {
+  ridesCreated: number;
+  ridesJoined: number;
+  totalTrips: number;
+  completedTrips: number;
+  activeTrips: number;
+  cancelledTrips: number;
+  loading: boolean;
+}
+
+// Custom hook for travel statistics
+const useTravelStats = (userId: string | undefined): TravelStats => {
+  const [stats, setStats] = useState<TravelStats>({
+    ridesCreated: 0,
+    ridesJoined: 0,
+    totalTrips: 0,
+    completedTrips: 0,
+    activeTrips: 0,
+    cancelledTrips: 0,
+    loading: true,
+  });
+
+  useEffect(() => {
+    const fetchTravelStats = async () => {
+      if (!userId) {
+        setStats(prev => ({ ...prev, loading: false }));
+        return;
+      }
+
+      try {
+        // Fetch bookings (rides joined)
+        const bookingsQuery = query(
+          collection(db, "bookings"),
+          where("userId", "==", userId)
+        );
+        const bookingsSnapshot = await getDocs(bookingsQuery);
+
+        // Fetch created rides
+        const createdRidesQuery = query(
+          collection(db, "Rides"),
+          where("userId", "==", userId)
+        );
+        const createdRidesSnapshot = await getDocs(createdRidesQuery);
+
+        // Calculate stats from bookings
+        let joinedActive = 0;
+        let joinedCompleted = 0;
+        let joinedCancelled = 0;
+
+        bookingsSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const status = data.status || 'active';
+          
+          switch (status.toLowerCase()) {
+            case 'completed':
+              joinedCompleted++;
+              break;
+            case 'cancelled':
+            case 'left':
+              joinedCancelled++;
+              break;
+            case 'active':
+            default:
+              joinedActive++;
+              break;
+          }
+        });
+
+     
+        let createdActive = 0;
+        let createdCompleted = 0;
+        let createdCancelled = 0;
+
+        createdRidesSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const status = data.status || 'active';
+          
+          switch (status.toLowerCase()) {
+            case 'completed':
+              createdCompleted++;
+              break;
+            case 'cancelled':
+              createdCancelled++;
+              break;
+            case 'active':
+            default:
+              createdActive++;
+              break;
+          }
+        });
+
+        const ridesCreated = createdRidesSnapshot.docs.length;
+        const ridesJoined = bookingsSnapshot.docs.length;
+
+        setStats({
+          ridesCreated,
+          ridesJoined,
+          totalTrips: ridesCreated + ridesJoined,
+          completedTrips: createdCompleted + joinedCompleted,
+          activeTrips: createdActive + joinedActive,
+          cancelledTrips: createdCancelled + joinedCancelled,
+          loading: false,
+        });
+
+      } catch (error) {
+        console.error("Error fetching travel stats:", error);
+        setStats(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    fetchTravelStats();
+  }, [userId]);
+
+  return stats;
+};
 
 export const UserProfile: React.FC = () => {
   const { user } = useAuth();
@@ -35,11 +152,8 @@ export const UserProfile: React.FC = () => {
     lastName: "",
     phone: "",
   });
-  const [rideStats, setRideStats] = useState({
-    ridesBooked: 0,
-    ridesCompleted: 0,
-    loading: true,
-  });
+
+  const travelStats = useTravelStats(user?.uid);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -72,42 +186,6 @@ export const UserProfile: React.FC = () => {
     };
 
     fetchUserProfile();
-  }, [user]);
-
-  useEffect(() => {
-    const fetchRideStatistics = async () => {
-      if (!user?.uid) {
-        setRideStats({ ridesBooked: 0, ridesCompleted: 0, loading: false });
-        return;
-      }
-
-      try {
-        const bookingsRef = collection(db, "bookings");
-
-        const bookedQuery = query(bookingsRef, where("userId", "==", user.uid));
-        const bookedSnapshot = await getCountFromServer(bookedQuery);
-        const ridesBooked = bookedSnapshot.data().count;
-
-        const completedQuery = query(
-          bookingsRef,
-          where("userId", "==", user.uid),
-          where("status", "==", "completed"),
-        );
-        const completedSnapshot = await getCountFromServer(completedQuery);
-        const ridesCompleted = completedSnapshot.data().count;
-
-        setRideStats({
-          ridesBooked,
-          ridesCompleted,
-          loading: false,
-        });
-      } catch (error) {
-        console.error("Error fetching ride statistics:", error);
-        setRideStats({ ridesBooked: 0, ridesCompleted: 0, loading: false });
-      }
-    };
-
-    fetchRideStatistics();
   }, [user]);
 
   const handleSave = async () => {
@@ -150,7 +228,7 @@ export const UserProfile: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="p-3 sm:p-6 lg:p-8">
+      <div className="p-3 sm:p-6 mt-6 lg:p-8">
         <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-orange-800/20 p-4 sm:p-6 lg:p-8 shadow-xl">
           <div className="animate-pulse">
             <div className="h-6 bg-gray-700 rounded mb-4"></div>
@@ -163,7 +241,7 @@ export const UserProfile: React.FC = () => {
 
   if (!userProfile) {
     return (
-      <div className="p-3 sm:p-6 lg:p-8">
+      <div className="p-3 sm:p-6 mt-6 lg:p-8">
         <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-orange-800/20 p-4 sm:p-6 lg:p-8 shadow-xl">
           <p className="text-gray-400">No profile data found.</p>
         </div>
@@ -172,7 +250,7 @@ export const UserProfile: React.FC = () => {
   }
 
   return (
-    <div className="p-2 sm:p-3 lg:p-6 xl:p-8">
+    <div className="p-2 sm:p-3 mt-6 lg:p-6 xl:p-8">
       <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-orange-800/20 p-3 sm:p-4 lg:p-6 xl:p-8 shadow-xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center mb-4 sm:mb-6 lg:mb-8">
           <div className="p-2 sm:p-3 lg:p-4 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg sm:rounded-xl shadow-lg mb-3 sm:mb-0">
@@ -211,8 +289,65 @@ export const UserProfile: React.FC = () => {
               </div>
             </div>
 
-            {/* Editable Fields */}
-            {editMode ? (
+            {/* Enhanced Travel Statistics */}
+            <div className="space-y-3 sm:space-y-4">
+              <h5 className="text-base sm:text-lg font-semibold text-white flex items-center">
+                <Trophy className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-yellow-400" />
+                Travel Statistics
+                {travelStats.loading && (
+                  <div className="ml-2 animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-yellow-400"></div>
+                )}
+              </h5>
+              
+              {travelStats.loading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="text-center p-3 sm:p-4 bg-gray-800/30 rounded-lg sm:rounded-xl animate-pulse">
+                      <div className="h-4 sm:h-6 w-6 sm:w-8 bg-gray-700 rounded mx-auto mb-1 sm:mb-2"></div>
+                      <div className="h-3 sm:h-4 w-12 sm:w-16 bg-gray-700 rounded mx-auto"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {/* Main Stats */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                    <div className="text-center p-3 sm:p-4 bg-blue-500/10 rounded-lg sm:rounded-xl border border-blue-500/20">
+                      <Car className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400 mx-auto mb-1 sm:mb-2" />
+                      <p className="text-lg sm:text-2xl font-bold text-blue-400">
+                        {travelStats.ridesCreated}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-400">
+                        Created
+                      </p>
+                    </div>
+                    <div className="text-center p-3 sm:p-4 bg-green-500/10 rounded-lg sm:rounded-xl border border-green-500/20">
+                      <Users className="h-4 w-4 sm:h-5 sm:w-5 text-green-400 mx-auto mb-1 sm:mb-2" />
+                      <p className="text-lg sm:text-2xl font-bold text-green-400">
+                        {travelStats.ridesJoined}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-400">
+                        Joined
+                      </p>
+                    </div>
+                    <div className="text-center p-3 sm:p-4 bg-purple-500/10 rounded-lg sm:rounded-xl border border-purple-500/20 col-span-2 sm:col-span-1">
+                      <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400 mx-auto mb-1 sm:mb-2" />
+                      <p className="text-lg sm:text-2xl font-bold text-purple-400">
+                        {travelStats.totalTrips}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-400">
+                        Total Trips
+                      </p>
+                    </div>
+                  </div>
+
+                 
+                </>
+              )}
+            </div>
+
+            {/* Editable Fields - Only show when in edit mode */}
+            {editMode && (
               <div className="space-y-3 sm:space-y-4">
                 <h5 className="text-base sm:text-lg font-semibold text-white">
                   Edit Profile
@@ -272,49 +407,6 @@ export const UserProfile: React.FC = () => {
                   >
                     Cancel
                   </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3 sm:space-y-4">
-                <h5 className="text-base sm:text-lg font-semibold text-white flex items-center">
-                  <Star className="h-3 w-3 sm:h-4 sm:w-4 mr-2 text-yellow-400" />
-                  Account Statistics
-                </h5>
-                <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                  <div className="text-center p-3 sm:p-4 bg-gray-800/30 rounded-lg sm:rounded-xl">
-                    {rideStats.loading ? (
-                      <div className="animate-pulse">
-                        <div className="h-4 sm:h-6 w-6 sm:w-8 bg-gray-700 rounded mx-auto mb-1 sm:mb-2"></div>
-                        <div className="h-3 sm:h-4 w-12 sm:w-16 bg-gray-700 rounded mx-auto"></div>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-lg sm:text-2xl font-bold text-green-400">
-                          {rideStats.ridesBooked}
-                        </p>
-                        <p className="text-xs sm:text-sm text-gray-400">
-                          Rides Booked
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <div className="text-center p-3 sm:p-4 bg-gray-800/30 rounded-lg sm:rounded-xl">
-                    {rideStats.loading ? (
-                      <div className="animate-pulse">
-                        <div className="h-4 sm:h-6 w-6 sm:w-8 bg-gray-700 rounded mx-auto mb-1 sm:mb-2"></div>
-                        <div className="h-3 sm:h-4 w-12 sm:w-16 bg-gray-700 rounded mx-auto"></div>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-lg sm:text-2xl font-bold text-blue-400">
-                          {rideStats.ridesCompleted}
-                        </p>
-                        <p className="text-xs sm:text-sm text-gray-400">
-                          Rides Completed
-                        </p>
-                      </>
-                    )}
-                  </div>
                 </div>
               </div>
             )}

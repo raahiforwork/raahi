@@ -119,6 +119,7 @@ export default function PastRides({
   const [cancellingRide, setCancellingRide] = useState<string | null>(null);
   const router = useRouter();
 
+  // [Keep all your existing useEffect and handler functions unchanged - they're optimized]
   useEffect(() => {
     const fetchUserRides = async () => {
       if (!userId) {
@@ -332,13 +333,13 @@ export default function PastRides({
 
       const fullRideData = rideDoc.data();
 
-      // 1. Delete booking if it exists
+    
       if (!ride.id.includes("_past")) {
         const bookingRef = doc(db, "bookings", ride.id);
         batch.delete(bookingRef);
       }
 
-      // 2. Add to ride history
+      
       const rideHistoryRef = doc(
         collection(db, "users", userId, "rideHistory"),
       );
@@ -349,14 +350,12 @@ export default function PastRides({
         reason: "user_left",
       });
 
-      // 3. Update ride seats
+
       batch.update(rideRef, {
         availableSeats: increment(1),
       });
 
       await batch.commit();
-
-      // 4. Remove user from chat room
       try {
         const chatRoomId = await chatService.findChatRoomByRide(actualRideId);
         if (chatRoomId) {
@@ -365,7 +364,7 @@ export default function PastRides({
         }
       } catch (chatError) {
         console.error("Error leaving chat room:", chatError);
-        // Don't fail the entire operation if chat removal fails
+       
       }
 
       setRides((prev) => prev.filter((r) => r.id !== ride.id));
@@ -394,10 +393,10 @@ export default function PastRides({
       const fullRideData = rideDoc.data();
       const batch = writeBatch(db);
 
-      // 1. Delete the ride
+
       batch.delete(rideRef);
 
-      // 2. Add to creator's ride history
+    
       const rideHistoryRef = doc(
         collection(db, "users", userId, "rideHistory"),
       );
@@ -408,7 +407,7 @@ export default function PastRides({
         reason: "cancelled_by_creator",
       });
 
-      // 3. Delete all bookings and add to users' histories
+     
       const bookingsQuery = query(
         collection(db, "bookings"),
         where("rideId", "==", actualRideId),
@@ -434,7 +433,7 @@ export default function PastRides({
 
       await batch.commit();
 
-      // 4. Delete the entire chat room (since ride is cancelled)
+      
       try {
         const chatRoomId = await chatService.findChatRoomByRide(actualRideId);
         if (chatRoomId) {
@@ -443,7 +442,7 @@ export default function PastRides({
         }
       } catch (chatError) {
         console.error("Error deleting chat room:", chatError);
-        // Don't fail the entire operation if chat deletion fails
+     
       }
 
       setRides((prev) => prev.filter((r) => r.id !== ride.id));
@@ -463,14 +462,14 @@ export default function PastRides({
     setMarkingCompleted(ride.id);
 
     try {
-      // 1. Update ride/booking status
+      
       if (ride.isCreated && !ride.id.includes("_past")) {
         const actualRideId = ride.id.replace("_created", "");
         await updateDoc(doc(db, "Rides", actualRideId), {
           status: "completed",
         });
 
-        // 2. Creator leaves chat room when marking as completed
+       
         try {
           const chatRoomId = await chatService.findChatRoomByRide(actualRideId);
           if (chatRoomId) {
@@ -479,7 +478,7 @@ export default function PastRides({
           }
         } catch (chatError) {
           console.error("Error leaving chat room:", chatError);
-          // Don't fail the entire operation if chat removal fails
+         
         }
       } else if (!ride.id.includes("_past")) {
         await updateDoc(doc(db, "bookings", ride.id), {
@@ -618,25 +617,25 @@ export default function PastRides({
   const bookedRides = rides.filter((ride) => !ride.isCreated);
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-sm">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+      {/* Header - Made more responsive */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+          <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-xs sm:text-sm">
             {rides.length} total trips
           </Badge>
           {activeRides.length > 0 && (
-            <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-sm">
+            <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs sm:text-sm">
               {activeRides.length} active
             </Badge>
           )}
           {createdRides.length > 0 && (
-            <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30 text-sm">
+            <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30 text-xs sm:text-sm">
               {createdRides.length} created
             </Badge>
           )}
           {completedRides.length > 0 && (
-            <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-sm">
+            <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs sm:text-sm">
               {completedRides.length} completed
             </Badge>
           )}
@@ -646,7 +645,7 @@ export default function PastRides({
       {/* Active Rides Section */}
       {activeRides.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center px-2 sm:px-0">
             <Timer className="h-5 w-5 mr-2 text-blue-400" />
             Active Trips ({activeRides.length})
           </h3>
@@ -672,7 +671,7 @@ export default function PastRides({
       {/* Completed/Cancelled Rides Section */}
       {completedRides.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center px-2 sm:px-0">
             <CheckCircle className="h-5 w-5 mr-2 text-green-400" />
             Past Trips ({completedRides.length})
           </h3>
@@ -760,8 +759,9 @@ function TripCard({
   };
 
   return (
-    <div className="group relative bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/30 hover:border-gray-600/50 transition-all duration-300 overflow-hidden shadow-lg hover:shadow-xl">
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 flex items-center gap-2">
+    <div className="group relative bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/30 hover:border-gray-600/50 transition-all duration-300 overflow-hidden shadow-lg hover:shadow-xl mx-2 sm:mx-0">
+      {/* Status badges positioned better for mobile */}
+      <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-10 flex flex-wrap items-center justify-center gap-1 sm:gap-2 max-w-[calc(100%-2rem)]">
         {getStatusBadge(ride.status)}
 
         {ride.isCreated && (
@@ -772,16 +772,16 @@ function TripCard({
         )}
       </div>
 
-      <div className="p-5 sm:p-6 md:p-7 pt-14">
-        {/* Creator Info and Price */}
-        <div className="flex items-start justify-between mb-5 sm:mb-6 gap-4">
+      <div className="p-4 sm:p-5 md:p-6 pt-12 sm:pt-14">
+        {/* Creator Info and Price - Improved mobile layout */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 sm:mb-5 gap-3 sm:gap-4">
           <div className="flex items-center space-x-3 flex-1 min-w-0">
             <div className="relative flex-shrink-0">
               <Avatar
-                className={`h-12 w-12 sm:h-14 sm:w-14 ring-2 ${isActive ? "ring-blue-500/30" : "ring-purple-500/30"}`}
+                className={`h-10 w-10 sm:h-12 sm:w-12 ring-2 ${isActive ? "ring-blue-500/30" : "ring-purple-500/30"}`}
               >
                 <AvatarFallback
-                  className={`bg-gradient-to-br ${isActive ? "from-blue-500 to-blue-600" : "from-purple-500 to-purple-600"} text-white font-bold text-sm`}
+                  className={`bg-gradient-to-br ${isActive ? "from-blue-500 to-blue-600" : "from-purple-500 to-purple-600"} text-white font-bold text-xs sm:text-sm`}
                 >
                   {ride.createdByName
                     ?.split(" ")
@@ -792,21 +792,20 @@ function TripCard({
             </div>
 
             <div className="min-w-0 flex-1">
-              <h4 className="font-semibold text-white text-sm sm:text-base leading-relaxed">
+              <h4 className="font-semibold text-white text-sm sm:text-base leading-tight sm:leading-relaxed truncate">
                 {ride.createdByName || "Anonymous Traveler"}
               </h4>
-              <p className="text-xs sm:text-sm text-gray-400">
+              <p className="text-xs sm:text-sm text-gray-400 truncate">
                 {ride.isCreated ? "You (Trip Organizer)" : "Trip Organizer"}
               </p>
             </div>
           </div>
 
-          {/* Price Display */}
-          <div className="text-right flex-shrink-0 min-w-[80px]">
-            <div className="text-xs text-gray-400 whitespace-nowrap mb-1">
+          {/* Price Display - Better mobile positioning */}
+          <div className="text-center sm:text-right flex-shrink-0 bg-gray-800/50 rounded-lg p-2 sm:bg-transparent sm:p-0">
+            <div className="text-xs text-gray-400 mb-1">
               {ride.vehicleType === "cab" ? "Total Price" : "Price Per Seat"}
             </div>
-
             <div className="text-lg sm:text-xl font-bold text-white">
               {ride.vehicleType === "cab"
                 ? `₹${ride.totalPrice || 0}`
@@ -815,13 +814,12 @@ function TripCard({
           </div>
         </div>
 
-        {/* Trip Details */}
-        <div className="space-y-4 sm:space-y-5 mb-5 sm:mb-6">
-          <div className="flex items-center justify-between text-xs sm:text-sm">
-            <div className="flex items-center space-x-3 sm:space-x-4">
-              <div
-                className={`flex items-center ${isActive ? "text-blue-400" : "text-purple-400"}`}
-              >
+        {/* Trip Details - Improved mobile spacing */}
+        <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-5">
+          {/* Date, Time, and Seats info */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 text-xs sm:text-sm">
+            <div className="flex items-center justify-between sm:justify-start sm:space-x-4">
+              <div className={`flex items-center ${isActive ? "text-blue-400" : "text-purple-400"}`}>
                 <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                 <span className="truncate">{ride.date}</span>
               </div>
@@ -830,7 +828,7 @@ function TripCard({
                 <span>{formatToAmPm(ride.time)}</span>
               </div>
             </div>
-            <div className="flex items-center text-gray-400 flex-shrink-0">
+            <div className="flex items-center justify-center sm:justify-end text-gray-400 bg-gray-800/30 rounded px-2 py-1 sm:bg-transparent sm:px-0 sm:py-0">
               <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
               <span>
                 {ride.availableSeats || 0}/{ride.totalSeats}
@@ -838,9 +836,10 @@ function TripCard({
             </div>
           </div>
 
-          {/* Route Visual */}
-          <div className="bg-gray-800/30 rounded-xl p-4 sm:p-5 border border-gray-700/20">
-            <div className="flex items-center">
+          {/* Route Visual - Improved mobile layout */}
+          <div className="bg-gray-800/30 rounded-xl p-3 sm:p-4 border border-gray-700/20">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0">
+              {/* From location */}
               <div className="flex items-center space-x-2 flex-1 min-w-0">
                 <div className="w-3 h-3 bg-green-400 rounded-full flex-shrink-0"></div>
                 <div className="flex-1 min-w-0">
@@ -854,12 +853,14 @@ function TripCard({
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2 px-4 flex-shrink-0">
-                <div className="h-px bg-gradient-to-r from-green-400 to-blue-400 w-8 sm:w-10"></div>
-                <Car className="h-4 w-4 text-blue-400 flex-shrink-0" />
-                <div className="h-px bg-gradient-to-r from-blue-400 to-purple-400 w-8 sm:w-10"></div>
+              {/* Arrow/Car visual */}
+              <div className="flex items-center justify-center space-x-1 sm:space-x-2 sm:px-4 py-2 sm:py-0">
+                <div className="h-px bg-gradient-to-r from-green-400 to-blue-400 w-6 sm:w-10"></div>
+                <Car className="h-3 w-3 sm:h-4 sm:w-4 text-blue-400 flex-shrink-0" />
+                <div className="h-px bg-gradient-to-r from-blue-400 to-purple-400 w-6 sm:w-10"></div>
               </div>
 
+              {/* To location */}
               <div className="flex items-center space-x-2 flex-1 min-w-0">
                 <div className="flex-1 min-w-0 text-right">
                   <p
@@ -880,16 +881,18 @@ function TripCard({
           </div>
         </div>
 
+        {/* Preferences - Better mobile handling */}
         {ride.preferences && ride.preferences.length > 0 && (
-          <div className="mb-5 sm:mb-6">
-            <div className="flex flex-wrap gap-2">
+          <div className="mb-4 sm:mb-5">
+            <div className="flex flex-wrap gap-1 sm:gap-2">
               {ride.preferences.slice(0, 3).map((pref, index) => (
                 <Badge
                   key={index}
                   variant="outline"
-                  className="border-gray-600/50 bg-gray-700/30 text-gray-300 text-xs px-2 py-1"
+                  className="border-gray-600/50 bg-gray-700/30 text-gray-300 text-xs px-2 py-1 truncate max-w-[80px] sm:max-w-none"
+                  title={pref}
                 >
-                  {pref}
+                  {pref.length > 8 ? `${pref.substring(0, 8)}...` : pref}
                 </Badge>
               ))}
               {ride.preferences.length > 3 && (
@@ -904,8 +907,9 @@ function TripCard({
           </div>
         )}
 
-        <div className="flex items-center justify-center sm:justify-end w-full">
-          <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto">
+        {/* Action buttons - Completely redesigned for mobile */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-1">
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-1 sm:gap-2">
             {/* Cancel Ride Button (Creators only) */}
             {ride.isCreated && isActive && (
               <AlertDialog>
@@ -913,25 +917,24 @@ function TripCard({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:border-red-500/70 transition-all duration-300 min-w-[60px] h-7 text-[10px] px-2 py-1 whitespace-nowrap"
+                    className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:border-red-500/70 transition-all duration-300 flex-1 sm:flex-none min-w-[70px] h-8 text-xs px-2"
                     disabled={cancellingRide === ride.id}
                   >
                     {cancellingRide === ride.id ? (
                       <>
-                        <div className="animate-spin rounded-full h-2 w-2 border-b-2 border-red-400 mr-1"></div>
-                        <span className="hidden xs:inline">Cancelling...</span>
-                        <span className="xs:hidden">...</span>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-400 mr-1"></div>
+                        <span className="hidden sm:inline">Cancelling...</span>
+                        <span className="sm:hidden">...</span>
                       </>
                     ) : (
                       <>
-                        <Ban className="h-2.5 w-2.5 mr-1" />
-                        <span className="hidden xs:inline">Cancel</span>
-                        <span className="xs:hidden">Cancel</span>
+                        <Ban className="h-3 w-3 mr-1" />
+                        <span>Cancel</span>
                       </>
                     )}
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
+                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4 max-w-[calc(100vw-2rem)]">
                   <AlertDialogHeader>
                     <AlertDialogTitle className="text-white flex items-center">
                       <AlertTriangle className="h-5 w-5 mr-2 text-red-400" />
@@ -945,13 +948,13 @@ function TripCard({
                       <br />• This action cannot be undone
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                  <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700 w-full sm:w-auto">
                       Keep Ride
                     </AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => onCancelRide(ride)}
-                      className="bg-red-600 hover:bg-red-700 text-white"
+                      className="bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto"
                     >
                       <Ban className="h-4 w-4 mr-2" />
                       Cancel Ride
@@ -968,25 +971,24 @@ function TripCard({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-orange-500/50 text-orange-300 hover:bg-orange-500/10 hover:border-orange-500/70 transition-all duration-300 min-w-[60px] h-7 text-[10px] px-2 py-1 whitespace-nowrap"
+                    className="border-orange-500/50 text-orange-300 hover:bg-orange-500/10 hover:border-orange-500/70 transition-all duration-300 flex-1 sm:flex-none min-w-[70px] h-8 text-xs px-2"
                     disabled={loading === ride.id}
                   >
                     {loading === ride.id ? (
                       <>
-                        <div className="animate-spin rounded-full h-2 w-2 border-b-2 border-orange-400 mr-1"></div>
-                        <span className="hidden xs:inline">Leaving...</span>
-                        <span className="xs:hidden">...</span>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-orange-400 mr-1"></div>
+                        <span className="hidden sm:inline">Leaving...</span>
+                        <span className="sm:hidden">...</span>
                       </>
                     ) : (
                       <>
-                        <XCircle className="h-2.5 w-2.5 mr-1" />
-                        <span className="hidden xs:inline">Leave</span>
-                        <span className="xs:hidden">Leave</span>
+                        <XCircle className="h-3 w-3 mr-1" />
+                        <span>Leave</span>
                       </>
                     )}
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
+                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4 max-w-[calc(100vw-2rem)]">
                   <AlertDialogHeader>
                     <AlertDialogTitle className="text-white flex items-center">
                       <AlertTriangle className="h-5 w-5 mr-2 text-orange-400" />
@@ -997,13 +999,13 @@ function TripCard({
                       free up your seat for other travelers.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                  <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700 w-full sm:w-auto">
                       Stay in Ride
                     </AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => onLeaveRide(ride)}
-                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                      className="bg-orange-600 hover:bg-orange-700 text-white w-full sm:w-auto"
                     >
                       <XCircle className="h-4 w-4 mr-2" />
                       Leave Ride
@@ -1018,21 +1020,20 @@ function TripCard({
               <Button
                 size="sm"
                 variant="outline"
-                className="border-green-500/50 text-green-300 hover:bg-green-500/10 hover:border-green-500/70 transition-all duration-300 min-w-[60px] h-7 text-[10px] px-2 py-1 whitespace-nowrap"
+                className="border-green-500/50 text-green-300 hover:bg-green-500/10 hover:border-green-500/70 transition-all duration-300 flex-1 sm:flex-none min-w-[70px] h-8 text-xs px-2"
                 onClick={() => onMarkAsCompleted(ride)}
                 disabled={markingCompleted === ride.id}
               >
                 {markingCompleted === ride.id ? (
                   <>
-                    <div className="animate-spin rounded-full h-2 w-2 border-b-2 border-green-400 mr-1"></div>
-                    <span className="hidden xs:inline">Marking...</span>
-                    <span className="xs:hidden">...</span>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-green-400 mr-1"></div>
+                    <span className="hidden sm:inline">Marking...</span>
+                    <span className="sm:hidden">...</span>
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="h-2.5 w-2.5 mr-1" />
-                    <span className="hidden xs:inline">Complete</span>
-                    <span className="xs:hidden">Done</span>
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    <span>Complete</span>
                   </>
                 )}
               </Button>
@@ -1043,16 +1044,15 @@ function TripCard({
               <Button
                 size="sm"
                 variant="outline"
-                className="border-blue-500/50 text-blue-300 hover:bg-blue-500/10 hover:border-blue-500/70 transition-all duration-300 min-w-[60px] h-7 text-[10px] px-2 py-1 whitespace-nowrap"
+                className="border-blue-500/50 text-blue-300 hover:bg-blue-500/10 hover:border-blue-500/70 transition-all duration-300 flex-1 sm:flex-none min-w-[70px] h-8 text-xs px-2"
                 onClick={() => {
                   const actualRideId =
                     ride.rideId || ride.id.replace(/_created|_past/g, "");
                   router.push(`/ride/${actualRideId}`);
                 }}
               >
-                <Eye className="h-2.5 w-2.5 mr-1" />
-                <span className="hidden xs:inline">Details</span>
-                <span className="xs:hidden">View</span>
+                <Eye className="h-3 w-3 mr-1" />
+                <span>Details</span>
               </Button>
             )}
 
@@ -1063,25 +1063,24 @@ function TripCard({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:border-red-500/70 transition-all duration-300 min-w-[60px] h-7 text-[10px] px-2 py-1 whitespace-nowrap"
+                    className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:border-red-500/70 transition-all duration-300 flex-1 sm:flex-none min-w-[70px] h-8 text-xs px-2"
                     disabled={loading === ride.id}
                   >
                     {loading === ride.id ? (
                       <>
-                        <div className="animate-spin rounded-full h-2 w-2 border-b-2 border-red-400 mr-1"></div>
-                        <span className="hidden xs:inline">Deleting...</span>
-                        <span className="xs:hidden">...</span>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-400 mr-1"></div>
+                        <span className="hidden sm:inline">Deleting...</span>
+                        <span className="sm:hidden">...</span>
                       </>
                     ) : (
                       <>
-                        <Trash2 className="h-2.5 w-2.5 mr-1" />
-                        <span className="hidden xs:inline">Delete</span>
-                        <span className="xs:hidden">Del</span>
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        <span>Delete</span>
                       </>
                     )}
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
+                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4 max-w-[calc(100vw-2rem)]">
                   <AlertDialogHeader>
                     <AlertDialogTitle className="text-white flex items-center">
                       <AlertTriangle className="h-5 w-5 mr-2 text-red-400" />
@@ -1092,13 +1091,13 @@ function TripCard({
                       history? This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                  <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700 w-full sm:w-auto">
                       Cancel
                     </AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => onDelete(ride)}
-                      className="bg-red-600 hover:bg-red-700 text-white"
+                      className="bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete

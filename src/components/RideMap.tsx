@@ -133,7 +133,6 @@ export function RideMap({ rides, onRideSelect, selectedRide }: RideMapProps) {
             map.setCenter(userPos);
           },
           () => {
-            // Fallback to Mumbai if geolocation fails
             console.log("Geolocation failed, using default location");
           },
         );
@@ -141,7 +140,6 @@ export function RideMap({ rides, onRideSelect, selectedRide }: RideMapProps) {
     }
   }, [mapRef.current]);
 
-  // Animate route drawing
   const animateRouteDrawing = (
     polyline: google.maps.Polyline,
     duration: number = 2000,
@@ -169,7 +167,6 @@ export function RideMap({ rides, onRideSelect, selectedRide }: RideMapProps) {
     return animationTimer;
   };
 
-  // Create pulsing effect for selected route
   const createPulsingEffect = (polyline: google.maps.Polyline) => {
     let opacity = 0.8;
     let increasing = false;
@@ -192,7 +189,6 @@ export function RideMap({ rides, onRideSelect, selectedRide }: RideMapProps) {
     return pulseTimer;
   };
 
-  // Update markers and routes when rides change
   useEffect(() => {
     if (!mapInstance) return;
 
@@ -213,7 +209,6 @@ export function RideMap({ rides, onRideSelect, selectedRide }: RideMapProps) {
       const toCoords = getCoordinates(ride.route.to);
       const isSelected = selectedRide?.id === ride.id;
 
-      // Enhanced pickup marker with animation
       const pickupMarker = new google.maps.Marker({
         position: fromCoords,
         map: mapInstance,
@@ -229,7 +224,6 @@ export function RideMap({ rides, onRideSelect, selectedRide }: RideMapProps) {
         animation: isSelected ? google.maps.Animation.BOUNCE : undefined,
       });
 
-      // Enhanced destination marker with animation
       const destMarker = new google.maps.Marker({
         position: toCoords,
         map: mapInstance,
@@ -245,7 +239,6 @@ export function RideMap({ rides, onRideSelect, selectedRide }: RideMapProps) {
         animation: isSelected ? google.maps.Animation.BOUNCE : undefined,
       });
 
-      // Enhanced driver marker
       const driverMarker = new google.maps.Marker({
         position: {
           lat: fromCoords.lat + (Math.random() - 0.5) * 0.01,
@@ -272,7 +265,6 @@ export function RideMap({ rides, onRideSelect, selectedRide }: RideMapProps) {
         animation: isSelected ? google.maps.Animation.BOUNCE : undefined,
       });
 
-      // Add click listeners
       const addClickListener = (marker: google.maps.Marker) => {
         marker.addListener("click", () => {
           onRideSelect?.(ride);
@@ -285,7 +277,6 @@ export function RideMap({ rides, onRideSelect, selectedRide }: RideMapProps) {
 
       newMarkers.push(pickupMarker, destMarker, driverMarker);
 
-      // Create enhanced route with gradient effect
       const routePath = new google.maps.Polyline({
         path: [fromCoords, toCoords],
         geodesic: true,
@@ -336,7 +327,6 @@ export function RideMap({ rides, onRideSelect, selectedRide }: RideMapProps) {
             ],
       });
 
-      // Add shadow/glow effect for selected route
       if (isSelected) {
         const shadowPath = new google.maps.Polyline({
           path: [fromCoords, toCoords],
@@ -356,7 +346,6 @@ export function RideMap({ rides, onRideSelect, selectedRide }: RideMapProps) {
 
       newRoutes.push(routePath);
 
-      // Animate route drawing for selected route
       if (isSelected) {
         setTimeout(() => {
           animateRouteDrawing(routePath, 1500);
@@ -369,7 +358,6 @@ export function RideMap({ rides, onRideSelect, selectedRide }: RideMapProps) {
     setMarkers(newMarkers);
     setRoutes(newRoutes);
 
-    // Cleanup function
     return () => {
       if (animationInterval) {
         clearInterval(animationInterval);

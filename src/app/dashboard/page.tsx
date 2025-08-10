@@ -730,7 +730,7 @@ export default function ModernDashboard() {
     };
 
     fetchAvailableRides();
-  });
+  },[user?.uid]);
 
   useEffect(() => {
     if (!user) return;

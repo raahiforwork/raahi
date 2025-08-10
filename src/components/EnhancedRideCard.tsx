@@ -1,4 +1,3 @@
-// components/dashboard/EnhancedRideCard.tsx
 "use client";
 
 import React from "react";
@@ -12,6 +11,9 @@ import {
   Eye,
   MessageCircle,
   ArrowRight,
+  XCircle,
+  Crown,
+  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -29,6 +31,7 @@ interface EnhancedRideCardProps {
 }
 
 const formatToAmPm = (time24: string): string => {
+  if (!time24) return "";
   const [hourStr, minute] = time24.split(":");
   let hour = parseInt(hourStr, 10);
   const ampm = hour >= 12 ? "PM" : "AM";
@@ -62,6 +65,7 @@ const EnhancedRideCard: React.FC<EnhancedRideCardProps> = ({
   onRideSelect,
 }) => {
   const router = useRouter();
+  
   const isBooked = userBookedRides.includes(ride.id);
   const isLoading = bookingLoading === ride.id;
   const isSelected = selectedRide?.id === ride.id;
@@ -77,11 +81,6 @@ const EnhancedRideCard: React.FC<EnhancedRideCardProps> = ({
   };
 
   const handleJoinTripClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    router.push(`/ride/${ride.id}`);
-  };
-
-  const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     router.push(`/ride/${ride.id}`);
   };
@@ -131,7 +130,7 @@ const EnhancedRideCard: React.FC<EnhancedRideCardProps> = ({
               <h4 className="font-semibold text-white text-sm sm:text-base leading-relaxed">
                 {ride.createdByName || "Anonymous Traveler"}
               </h4>
-              <p className="text-xs sm:text-sm text-gray-400">Ride</p>
+              <p className="text-xs sm:text-sm text-gray-400">Trip Organizer</p>
             </div>
           </div>
 
@@ -142,8 +141,8 @@ const EnhancedRideCard: React.FC<EnhancedRideCardProps> = ({
 
             <div className="text-lg sm:text-xl font-bold text-white">
               {ride.vehicleType === "cab"
-                ? `₹${ride.totalPrice}`
-                : `₹${ride.pricePerSeat}`}
+                ? `₹${ride.totalPrice || 0}`
+                : `₹${ride.pricePerSeat || 0}`}
             </div>
           </div>
         </div>
@@ -164,7 +163,7 @@ const EnhancedRideCard: React.FC<EnhancedRideCardProps> = ({
             <div className="flex items-center text-gray-400 flex-shrink-0">
               <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
               <span>
-                {ride.availableSeats}/{ride.totalSeats}
+                {ride.availableSeats || 0}/{ride.totalSeats}
               </span>
             </div>
           </div>
@@ -258,19 +257,9 @@ const EnhancedRideCard: React.FC<EnhancedRideCardProps> = ({
               )}
             </Button>
           )}
-
-          {/* <Button
-            size="sm"
-            variant="outline"
-            className="border-gray-600 text-gray-300 hover:bg-gray-700 px-3"
-            onClick={handleChevronClick}
-          >
-            <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
-          </Button> */}
         </div>
       </div>
 
-      {/* Hover Effect */}
       <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 to-blue-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
     </div>
   );

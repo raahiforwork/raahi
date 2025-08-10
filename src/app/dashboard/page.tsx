@@ -70,6 +70,7 @@ import {
   where,
   limit,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
@@ -932,7 +933,6 @@ export default function ModernDashboard() {
   };
 
   const handleCreateRide = async () => {
-    // Updated validation to check the correct fields based on vehicle type
     const isPriceFieldValid =
       createRideForm.vehicleType === "cab"
         ? createRideForm.totalPrice
@@ -1039,32 +1039,79 @@ export default function ModernDashboard() {
     }
   };
 
+  const handleJoinTrip = (rideId: string) => {
+    return () => {
+      router.push(`/ride/${rideId}`);
+    };
+  };
+
   const handleCancelRide = async () => {
-    if (!createdRide || !createdRide.id || !user) return;
+  if (!createdRide || !createdRide.id || !user) return;
+
+  try {
+    const rideRef = doc(db, "Rides", createdRide.id);
+    const rideDoc = await getDoc(rideRef);
+    
+    if (!rideDoc.exists()) {
+      throw new Error("Ride not found");
+    }
+
+    const fullRideData = rideDoc.data();
+    const batch = writeBatch(db);
+
+    batch.delete(rideRef);
+
+    const historyRef = doc(db, "users", user.uid, "rideHistory", createdRide.id);
+    batch.set(historyRef, {
+      ...fullRideData,
+      cancelledAt: serverTimestamp(),
+      status: "cancelled",
+      reason: "cancelled_by_creator"
+    });
+
+    const bookingsQuery = query(
+      collection(db, "bookings"),
+      where("rideId", "==", createdRide.id)
+    );
+    const bookingsSnapshot = await getDocs(bookingsQuery);
+
+    bookingsSnapshot.docs.forEach(bookingDoc => {
+      batch.delete(bookingDoc.ref);
+
+      const bookingData = bookingDoc.data();
+      if (bookingData.userId !== user.uid) {
+        const userRideHistoryRef = doc(
+          collection(db, "users", bookingData.userId, "rideHistory")
+        );
+        batch.set(userRideHistoryRef, {
+          ...fullRideData,
+          cancelledAt: serverTimestamp(),
+          status: "cancelled",
+          reason: "cancelled_by_creator"
+        });
+      }
+    });
+
+    await batch.commit();
 
     try {
-      const rideRef = doc(db, "Rides", createdRide.id);
-      const historyRef = doc(
-        db,
-        "users",
-        user.uid,
-        "rideHistory",
-        createdRide.id,
-      );
-
-      await setDoc(historyRef, {
-        ...createdRide,
-        status: "cancelled",
-        cancelledAt: new Date().toISOString(),
-      });
-
-      await deleteDoc(rideRef);
-
-      setCreatedRide(null);
-    } catch (error) {
-      console.error("Cancel Ride Error:", error);
+      const chatRoomId = await chatService.findChatRoomByRide(createdRide.id);
+      if (chatRoomId) {
+        await chatService.permanentlyDeleteChat(chatRoomId);
+        console.log("Successfully deleted chat room");
+      }
+    } catch (chatError) {
+      console.error("Error deleting chat room:", chatError);
     }
-  };
+
+    setCreatedRide(null);
+    toast.success("Ride cancelled successfully. All booked users have been notified.");
+
+  } catch (error) {
+    console.error("Cancel Ride Error:", error);
+    toast.error("Failed to cancel ride: " + String(error));
+  }
+};
 
   function getSelectedPreferences() {
     const prefs = [];
@@ -1384,9 +1431,6 @@ export default function ModernDashboard() {
                     <h3 className="text-base sm:text-lg font-semibold text-white">
                       Available Rides
                     </h3>
-                    <Badge className="ml-2 sm:ml-3 bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs sm:text-sm">
-                      {filteredRides.length} rides
-                    </Badge>
                   </div>
 
                   <Button
@@ -1436,7 +1480,10 @@ export default function ModernDashboard() {
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/50 rounded-2xl border border-gray-700/30 p-4 sm:p-6 xl2:p-8 shadow-lg">
+                  <div
+                    className="bg-gradient-to-br from-gray-900/50 to-gray-800/50 rounded-2xl border border-gray-700/30 p-4 sm:p-6 xl2:p-8 shadow-lg hover:cursor-pointer hover:bg-gray-800"
+                    onClick={handleJoinTrip(createdRide.id)}
+                  >
                     <div className="flex flex-col xl2:flex-row gap-6 sm:gap-8 xl2:gap-10">
                       {/* Driver Info */}
                       <div className="flex items-center space-x-3 sm:space-x-4 xl2:min-w-fit">
@@ -1453,10 +1500,6 @@ export default function ModernDashboard() {
                             <h4 className="text-lg sm:text-xl font-bold text-white">
                               {createdRide.createdByName}
                             </h4>
-                            <Badge className="bg-green-500/20 text-green-300 border-green-500/30 px-2 sm:px-3 py-1 text-xs sm:text-sm w-fit">
-                              <Shield className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
-                              Verified Driver
-                            </Badge>
                           </div>
                           <p className="text-gray-400 mt-1 text-sm sm:text-base">
                             Ride Creator
@@ -1584,10 +1627,9 @@ export default function ModernDashboard() {
                           <Button
                             size="sm"
                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm flex-1 xl2:flex-none xl2:min-w-[120px]"
-                            onClick={() => router.push("/chat")}
+                            onClick={() => router.push(`/ride/${createdRide.id}`)}
                           >
-                            <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                            Chat
+                            View Details
                           </Button>
                           <Button
                             size="sm"

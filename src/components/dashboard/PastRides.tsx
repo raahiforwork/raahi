@@ -9,6 +9,11 @@ import {
   getDocs,
   query,
   where,
+  writeBatch,
+  serverTimestamp,
+  increment,
+  addDoc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -25,7 +30,9 @@ import {
   MessageCircle,
   Edit,
   Crown,
+  Ban,
 } from "lucide-react";
+import { chatService } from "@/lib/chatService";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -42,6 +49,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Ride } from "@/app/dashboard/page";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 type BookedRide = {
   id: string;
@@ -50,7 +58,7 @@ type BookedRide = {
   userName: string;
   userEmail: string;
   bookedAt: any;
-  status: "active" | "completed" | "cancelled";
+  status: "active" | "completed" | "cancelled" | "left";
   from: string;
   to: string;
   date: string;
@@ -63,7 +71,7 @@ type BookedRide = {
   availableSeats: number;
   createdByName: string;
   preferences?: string[];
-  isCreated?: boolean; 
+  isCreated?: boolean;
 };
 
 type PastRidesProps = {
@@ -107,6 +115,8 @@ export default function PastRides({
   const [loading, setLoading] = useState<string | null>(null);
   const [markingCompleted, setMarkingCompleted] = useState<string | null>(null);
   const [fetchingRides, setFetchingRides] = useState(false);
+  const [cancellingRide, setCancellingRide] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchUserRides = async () => {
@@ -144,7 +154,6 @@ export default function PastRides({
       }
 
       try {
-      
         const bookingsQuery = query(
           collection(db, "bookings"),
           where("userId", "==", userId),
@@ -184,13 +193,12 @@ export default function PastRides({
                 availableSeats: rideData.availableSeats,
                 createdByName: rideData.createdByName,
                 preferences: rideData.preferences,
-                isCreated: false, 
+                isCreated: false,
               } as BookedRide;
             }
             return null;
           },
         );
-
 
         const createdRidesQuery = query(
           collection(db, "Rides"),
@@ -202,7 +210,7 @@ export default function PastRides({
           (doc) => {
             const rideData = doc.data();
             return {
-              id: doc.id + "_created", 
+              id: doc.id + "_created",
               rideId: doc.id,
               userId: userId,
               userName: rideData.createdByName,
@@ -231,7 +239,6 @@ export default function PastRides({
           (ride) => ride !== null,
         ) as BookedRide[];
 
-      
         const allRides = [
           ...validBookedRides,
           ...createdRides,
@@ -307,19 +314,225 @@ export default function PastRides({
     fetchUserRides();
   }, [userId, pastRides]);
 
+  const handleLeaveRide = async (ride: BookedRide) => {
+  if (!userId) return;
+  setLoading(ride.id);
+
+  try {
+    const batch = writeBatch(db);
+
+    const actualRideId = ride.rideId || ride.id.replace("_created", "");
+    const rideRef = doc(db, "Rides", actualRideId);
+    const rideDoc = await getDoc(rideRef);
+
+    if (!rideDoc.exists()) {
+      throw new Error("Ride not found");
+    }
+
+    const fullRideData = rideDoc.data();
+
+    // 1. Delete booking if it exists
+    if (!ride.id.includes("_past")) {
+      const bookingRef = doc(db, "bookings", ride.id);
+      batch.delete(bookingRef);
+    }
+
+    // 2. Add to ride history
+    const rideHistoryRef = doc(
+      collection(db, "users", userId, "rideHistory"),
+    );
+    batch.set(rideHistoryRef, {
+      ...fullRideData,
+      leftAt: serverTimestamp(),
+      status: "left",
+      reason: "user_left",
+    });
+
+    // 3. Update ride seats
+    batch.update(rideRef, {
+      availableSeats: increment(1),
+    });
+
+    await batch.commit();
+
+    // 4. Remove user from chat room
+    try {
+      const chatRoomId = await chatService.findChatRoomByRide(actualRideId);
+      if (chatRoomId) {
+        await chatService.leaveChatRoom(chatRoomId, userId);
+        console.log("Successfully left chat room");
+      }
+    } catch (chatError) {
+      console.error("Error leaving chat room:", chatError);
+      // Don't fail the entire operation if chat removal fails
+    }
+
+    setRides((prev) => prev.filter((r) => r.id !== ride.id));
+    toast.success("You have left the ride successfully.");
+
+  } catch (error) {
+    console.error("Error leaving ride:", error);
+    toast.error("Failed to leave ride: " + String(error));
+  }
+
+  setLoading(null);
+};
+
+const handleCancelRide = async (ride: BookedRide) => {
+  if (!userId) return;
+  setCancellingRide(ride.id);
+
+  try {
+    const actualRideId = ride.rideId || ride.id.replace("_created", "");
+    const rideRef = doc(db, "Rides", actualRideId);
+    const rideDoc = await getDoc(rideRef);
+
+    if (!rideDoc.exists()) {
+      throw new Error("Ride not found");
+    }
+
+    const fullRideData = rideDoc.data();
+    const batch = writeBatch(db);
+
+    // 1. Delete the ride
+    batch.delete(rideRef);
+
+    // 2. Add to creator's ride history
+    const rideHistoryRef = doc(
+      collection(db, "users", userId, "rideHistory"),
+    );
+    batch.set(rideHistoryRef, {
+      ...fullRideData,
+      cancelledAt: serverTimestamp(),
+      status: "cancelled",
+      reason: "cancelled_by_creator",
+    });
+
+    // 3. Delete all bookings and add to users' histories
+    const bookingsQuery = query(
+      collection(db, "bookings"),
+      where("rideId", "==", actualRideId),
+    );
+    const bookingsSnapshot = await getDocs(bookingsQuery);
+
+    bookingsSnapshot.docs.forEach((bookingDoc) => {
+      batch.delete(bookingDoc.ref);
+
+      const bookingData = bookingDoc.data();
+      if (bookingData.userId !== userId) {
+        const userRideHistoryRef = doc(
+          collection(db, "users", bookingData.userId, "rideHistory"),
+        );
+        batch.set(userRideHistoryRef, {
+          ...fullRideData,
+          cancelledAt: serverTimestamp(),
+          status: "cancelled",
+          reason: "cancelled_by_creator",
+        });
+      }
+    });
+
+    await batch.commit();
+
+    // 4. Delete the entire chat room (since ride is cancelled)
+    try {
+      const chatRoomId = await chatService.findChatRoomByRide(actualRideId);
+      if (chatRoomId) {
+        await chatService.permanentlyDeleteChat(chatRoomId);
+        console.log("Successfully deleted chat room");
+      }
+    } catch (chatError) {
+      console.error("Error deleting chat room:", chatError);
+      // Don't fail the entire operation if chat deletion fails
+    }
+
+    setRides((prev) => prev.filter((r) => r.id !== ride.id));
+    toast.success(
+      "Ride cancelled successfully. All booked users have been notified.",
+    );
+
+  } catch (error) {
+    console.error("Error cancelling ride:", error);
+    toast.error("Failed to cancel ride: " + String(error));
+  }
+
+  setCancellingRide(null);
+};
+
+async function handleMarkAsCompleted(ride: BookedRide) {
+  if (!userId) return;
+  setMarkingCompleted(ride.id);
+
+  try {
+    // 1. Update ride/booking status
+    if (ride.isCreated && !ride.id.includes("_past")) {
+      const actualRideId = ride.id.replace("_created", "");
+      await updateDoc(doc(db, "Rides", actualRideId), {
+        status: "completed",
+      });
+
+      // 2. Creator leaves chat room when marking as completed
+      try {
+        const chatRoomId = await chatService.findChatRoomByRide(actualRideId);
+        if (chatRoomId) {
+          await chatService.leaveChatRoom(chatRoomId, userId);
+          console.log("Creator successfully left chat room after completion");
+        }
+      } catch (chatError) {
+        console.error("Error leaving chat room:", chatError);
+        // Don't fail the entire operation if chat removal fails
+      }
+
+    } else if (!ride.id.includes("_past")) {
+      await updateDoc(doc(db, "bookings", ride.id), {
+        status: "completed",
+      });
+    }
+
+    setRides((prev) =>
+      prev.map((r) =>
+        r.id === ride.id ? { ...r, status: "completed" as const } : r,
+      ),
+    );
+
+    toast.success("Trip marked as completed");
+  } catch (err: any) {
+    console.error("Error marking as completed:", err);
+    toast.error(
+      "Failed to mark as completed: " + (err?.message ?? String(err)),
+    );
+  }
+  setMarkingCompleted(null);
+}
+
   async function handleDelete(ride: BookedRide) {
     if (!userId) return;
     setLoading(ride.id);
 
     try {
+      const batch = writeBatch(db);
+
       if (ride.isCreated && !ride.id.includes("_past")) {
-      
         const actualRideId = ride.id.replace("_created", "");
-        await deleteDoc(doc(db, "Rides", actualRideId));
+        const rideRef = doc(db, "Rides", actualRideId);
+        batch.delete(rideRef);
       } else if (!ride.id.includes("_past")) {
-        // Delete booking
-        await deleteDoc(doc(db, "bookings", ride.id));
+        const bookingRef = doc(db, "bookings", ride.id);
+        batch.delete(bookingRef);
       }
+
+      const actualRideId =
+        ride.rideId || ride.id.replace(/_created|_past/g, "");
+      const rideHistoryRef = doc(
+        db,
+        "users",
+        userId,
+        "rideHistory",
+        actualRideId,
+      );
+      batch.delete(rideHistoryRef);
+
+      await batch.commit();
 
       setRides((prev) => prev.filter((r) => r.id !== ride.id));
       if (onDelete) onDelete(ride.id);
@@ -329,40 +542,6 @@ export default function PastRides({
       toast.error("Failed to delete trip: " + (err?.message ?? String(err)));
     }
     setLoading(null);
-  }
-
-  async function handleMarkAsCompleted(ride: BookedRide) {
-    if (!userId) return;
-    setMarkingCompleted(ride.id);
-
-    try {
-      if (ride.isCreated && !ride.id.includes("_past")) {
-   
-        const actualRideId = ride.id.replace("_created", "");
-        await updateDoc(doc(db, "Rides", actualRideId), {
-          status: "completed",
-        });
-      } else if (!ride.id.includes("_past")) {
-        
-        await updateDoc(doc(db, "bookings", ride.id), {
-          status: "completed",
-        });
-      }
-
-      setRides((prev) =>
-        prev.map((r) =>
-          r.id === ride.id ? { ...r, status: "completed" as const } : r,
-        ),
-      );
-
-      toast.success("Trip marked as completed");
-    } catch (err: any) {
-      console.error("Error marking as completed:", err);
-      toast.error(
-        "Failed to mark as completed: " + (err?.message ?? String(err)),
-      );
-    }
-    setMarkingCompleted(null);
   }
 
   const getStatusBadge = (status: string) => {
@@ -379,6 +558,13 @@ export default function PastRides({
           <Badge className="bg-red-500/20 text-red-300 border-red-500/30 text-xs">
             <XCircle className="h-3 w-3 mr-1" />
             Cancelled
+          </Badge>
+        );
+      case "left":
+        return (
+          <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30 text-xs">
+            <XCircle className="h-3 w-3 mr-1" />
+            Left
           </Badge>
         );
       case "active":
@@ -425,7 +611,10 @@ export default function PastRides({
 
   const activeRides = rides.filter((ride) => ride.status === "active");
   const completedRides = rides.filter(
-    (ride) => ride.status === "completed" || ride.status === "cancelled",
+    (ride) =>
+      ride.status === "completed" ||
+      ride.status === "cancelled" ||
+      ride.status === "left",
   );
   const createdRides = rides.filter((ride) => ride.isCreated);
   const bookedRides = rides.filter((ride) => !ride.isCreated);
@@ -469,8 +658,11 @@ export default function PastRides({
                 key={ride.id}
                 ride={ride}
                 onDelete={handleDelete}
+                onLeaveRide={handleLeaveRide}
+                onCancelRide={handleCancelRide}
                 onMarkAsCompleted={handleMarkAsCompleted}
                 loading={loading}
+                cancellingRide={cancellingRide}
                 markingCompleted={markingCompleted}
                 isActive={true}
               />
@@ -492,8 +684,11 @@ export default function PastRides({
                 key={ride.id}
                 ride={ride}
                 onDelete={handleDelete}
+                onLeaveRide={handleLeaveRide}
+                onCancelRide={handleCancelRide}
                 onMarkAsCompleted={handleMarkAsCompleted}
                 loading={loading}
+                cancellingRide={cancellingRide}
                 markingCompleted={markingCompleted}
                 isActive={false}
               />
@@ -508,18 +703,25 @@ export default function PastRides({
 function TripCard({
   ride,
   onDelete,
+  onLeaveRide,
+  onCancelRide,
   onMarkAsCompleted,
   loading,
+  cancellingRide,
   markingCompleted,
   isActive,
 }: {
   ride: BookedRide;
   onDelete: (ride: BookedRide) => void;
+  onLeaveRide: (ride: BookedRide) => void;
+  onCancelRide: (ride: BookedRide) => void;
   onMarkAsCompleted: (ride: BookedRide) => void;
   loading: string | null;
+  cancellingRide: string | null;
   markingCompleted: string | null;
   isActive: boolean;
 }) {
+  const router = useRouter();
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case "completed":
@@ -534,6 +736,13 @@ function TripCard({
           <Badge className="bg-red-500/20 text-red-300 border-red-500/30 text-xs">
             <XCircle className="h-3 w-3 mr-1" />
             Cancelled
+          </Badge>
+        );
+      case "left":
+        return (
+          <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30 text-xs">
+            <XCircle className="h-3 w-3 mr-1" />
+            Left
           </Badge>
         );
       case "active":
@@ -582,7 +791,6 @@ function TripCard({
                     .join("") || "T"}
                 </AvatarFallback>
               </Avatar>
-              
             </div>
 
             <div className="min-w-0 flex-1">
@@ -664,7 +872,7 @@ function TripCard({
                   </p>
                   <p className="text-xs text-purple-400">
                     {ride.toTime && ride.toTime !== "Unknown"
-                      ? formatToAmPm(ride.toTime)
+                      ? ride.toTime
                       : "Drop-off"}
                   </p>
                 </div>
@@ -674,7 +882,6 @@ function TripCard({
           </div>
         </div>
 
-        {/* Preferences */}
         {ride.preferences && ride.preferences.length > 0 && (
           <div className="mb-5 sm:mb-6">
             <div className="flex flex-wrap gap-2">
@@ -700,21 +907,106 @@ function TripCard({
         )}
 
         <div className="flex items-center justify-end w-full">
-         
           <div className="flex items-center space-x-2">
-            
             {ride.isCreated && isActive && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-blue-500/50 text-blue-300 hover:bg-blue-500/10 hover:border-blue-500/70 transition-all duration-300"
-                onClick={() => {
-                  toast.info("Edit functionality coming soon!");
-                }}
-              >
-                <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                Edit
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:border-red-500/70 transition-all duration-300"
+                    disabled={cancellingRide === ride.id}
+                  >
+                    {cancellingRide === ride.id ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-400 mr-2"></div>
+                        Cancelling...
+                      </>
+                    ) : (
+                      <>
+                        <Ban className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                        Cancel Ride
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-white flex items-center">
+                      <AlertTriangle className="h-5 w-5 mr-2 text-red-400" />
+                      Cancel Your Ride
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-gray-400">
+                      Are you sure you want to cancel this ride? This will:
+                      <br />• Remove the ride from the platform
+                      <br />• Cancel all bookings for this ride
+                      <br />• Notify all booked passengers
+                      <br />• This action cannot be undone
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                      Keep Ride
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onCancelRide(ride)}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Ban className="h-4 w-4 mr-2" />
+                      Cancel Ride
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
+            {!ride.isCreated && isActive && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-orange-500/50 text-orange-300 hover:bg-orange-500/10 hover:border-orange-500/70 transition-all duration-300"
+                    disabled={loading === ride.id}
+                  >
+                    {loading === ride.id ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-orange-400 mr-2"></div>
+                        Leaving...
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                        Leave Ride
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-white flex items-center">
+                      <AlertTriangle className="h-5 w-5 mr-2 text-orange-400" />
+                      Leave This Ride?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-gray-400">
+                      Are you sure you want to leave this ride? This action will
+                      free up your seat for other travelers.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                      Stay in Ride
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onLeaveRide(ride)}
+                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Leave Ride
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
 
             {isActive && (
@@ -738,53 +1030,70 @@ function TripCard({
                 )}
               </Button>
             )}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:border-red-500/70 transition-all duration-300"
-                  disabled={loading === ride.id}
-                >
-                  {loading === ride.id ? (
-                    <>
-                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-400 mr-2"></div>
-                      Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                      Delete
-                    </>
-                  )}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="text-white flex items-center">
-                    <AlertTriangle className="h-5 w-5 mr-2 text-red-400" />
-                    Delete Trip Record
-                  </AlertDialogTitle>
-                  <AlertDialogDescription className="text-gray-400">
-                    Are you sure you want to delete this{" "}
-                    {ride.isCreated ? "created trip" : "booking"} from your
-                    history? This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
-                    Cancel
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => onDelete(ride)}
-                    className="bg-red-600 hover:bg-red-700 text-white"
+
+            {isActive && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-blue-500/50 text-blue-300 hover:bg-blue-500/10 hover:border-blue-500/70 transition-all duration-300"
+                onClick={() => {
+                  const actualRideId =
+                    ride.rideId || ride.id.replace(/_created|_past/g, "");
+                  router.push(`/ride/${actualRideId}`);
+                }}
+              >
+                View Details
+              </Button>
+            )}
+
+            {(!isActive || ride.id.includes("_past")) && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:border-red-500/70 transition-all duration-300"
+                    disabled={loading === ride.id}
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                    {loading === ride.id ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-400 mr-2"></div>
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                        Delete
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-white flex items-center">
+                      <AlertTriangle className="h-5 w-5 mr-2 text-red-400" />
+                      Delete Trip Record
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-gray-400">
+                      Are you sure you want to delete this trip from your
+                      history? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onDelete(ride)}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
       </div>

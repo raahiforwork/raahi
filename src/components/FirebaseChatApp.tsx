@@ -178,17 +178,16 @@ export default function ModernChatApp() {
 
   const handleChatSelect = (room: any) => {
     setSelectedChatRoom(room);
-    setShowChatList(false); 
+    setShowChatList(false);
   };
 
   const handleBackToList = () => {
     setShowChatList(true);
-   
+
     if (window.innerWidth < 768) {
       setSelectedChatRoom(null);
     }
   };
-
 
   const filteredChatRooms = React.useMemo(() => {
     if (!searchQuery.trim()) return chatRooms;
@@ -207,18 +206,38 @@ export default function ModernChatApp() {
     setIsDeleting(true);
 
     try {
-      await chatService.deleteChatForUser(chatRoomId, user.uid);
-
-      setChatRooms((prevRooms) =>
-        prevRooms.filter((room) => room.id !== chatRoomId),
+      const isOrganizer = await chatService.isChatRoomOrganizer(
+        chatRoomId,
+        user.uid,
       );
 
-      if (selectedChatRoom?.id === chatRoomId) {
-        setSelectedChatRoom(null);
-        setShowChatList(true);
-      }
+      if (isOrganizer) {
+        await chatService.permanentlyDeleteChat(chatRoomId);
 
-      toast.success("Chat deleted successfully");
+        setChatRooms((prevRooms) =>
+          prevRooms.filter((room) => room.id !== chatRoomId),
+        );
+
+        if (selectedChatRoom?.id === chatRoomId) {
+          setSelectedChatRoom(null);
+          setShowChatList(true);
+        }
+
+        toast.success("Chat room deleted permanently for all participants.");
+      } else {
+        await chatService.deleteChatForUser(chatRoomId, user.uid);
+
+        setChatRooms((prevRooms) =>
+          prevRooms.filter((room) => room.id !== chatRoomId),
+        );
+
+        if (selectedChatRoom?.id === chatRoomId) {
+          setSelectedChatRoom(null);
+          setShowChatList(true);
+        }
+
+        toast.success("Chat deleted from your view successfully");
+      }
     } catch (error) {
       console.error("Error deleting chat:", error);
       toast.error("Failed to delete chat");
@@ -233,18 +252,42 @@ export default function ModernChatApp() {
     setIsLeaving(true);
 
     try {
-      await chatService.leaveChatRoom(chatRoomId, user.uid);
-
-      setChatRooms((prevRooms) =>
-        prevRooms.filter((room) => room.id !== chatRoomId),
+      const isOrganizer = await chatService.isChatRoomOrganizer(
+        chatRoomId,
+        user.uid,
       );
-      if (selectedChatRoom?.id === chatRoomId) {
-        setSelectedChatRoom(null);
-        setShowChatList(true);
-      }
-      setMessages([]);
 
-      toast.success("Successfully left the chat");
+      if (isOrganizer) {
+        await chatService.permanentlyDeleteChat(chatRoomId);
+
+        setChatRooms((prevRooms) =>
+          prevRooms.filter((room) => room.id !== chatRoomId),
+        );
+
+        if (selectedChatRoom?.id === chatRoomId) {
+          setSelectedChatRoom(null);
+          setShowChatList(true);
+        }
+        setMessages([]);
+
+        toast.success(
+          "Chat room deleted successfully. All participants have been notified.",
+        );
+      } else {
+        await chatService.leaveChatRoom(chatRoomId, user.uid);
+
+        setChatRooms((prevRooms) =>
+          prevRooms.filter((room) => room.id !== chatRoomId),
+        );
+
+        if (selectedChatRoom?.id === chatRoomId) {
+          setSelectedChatRoom(null);
+          setShowChatList(true);
+        }
+        setMessages([]);
+
+        toast.success("Successfully left the chat");
+      }
     } catch (error) {
       console.error("Error leaving chat:", error);
       toast.error("Failed to leave chat. Please try again.");
@@ -254,7 +297,7 @@ export default function ModernChatApp() {
   };
 
   const handleViewDetails = (rideId: string) => {
-    router.push(`/chat/details/${rideId}`);
+    router.push(`/ride/${rideId}`);
   };
 
   const isUserOrganizer = (chatRoom: any) => {
@@ -278,14 +321,12 @@ export default function ModernChatApp() {
     }
   };
 
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
-
 
   React.useEffect(() => {
     if (!user?.uid) return;
@@ -294,7 +335,7 @@ export default function ModernChatApp() {
       user.uid,
       (rooms) => {
         setChatRooms(rooms);
-   
+
         if (rooms.length > 0 && !selectedChatRoom && window.innerWidth >= 768) {
           setSelectedChatRoom(rooms[0]);
         }
@@ -436,7 +477,7 @@ export default function ModernChatApp() {
                         <span className="font-semibold text-white text-sm truncate">
                           {formatAddress(room.route?.to || "Unknown", 15)}
                         </span>
-                       
+
                         {isUserOrganizer(room) && (
                           <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30 text-xs">
                             Host
@@ -523,7 +564,10 @@ export default function ModernChatApp() {
                                 <li>
                                   Need to be re-added by the organizer to rejoin
                                 </li>
-                                <li>Your booking will be marked as 'left'</li>
+                                <li>
+                                  Your booking will be marked as
+                                  &apos;left&apos;
+                                </li>
                                 <li>
                                   A seat will become available for other users
                                 </li>
@@ -845,8 +889,8 @@ export default function ModernChatApp() {
                             </AlertDialogTitle>
                             <AlertDialogDescription className="text-gray-400">
                               Are you sure you want to leave this chat? You
-                              won't be able to see new messages or rejoin unless
-                              someone adds you back.
+                              won&apos;t be able to see new messages or rejoin
+                              unless someone adds you back.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -907,62 +951,7 @@ export default function ModernChatApp() {
                   </DropdownMenu>
                 </div>
               </div>
-            </div>
-
-            {/* Enhanced Route Information Card */}
-            <div className="hidden md:block p-4 bg-gray-900/30 border-b border-green-800/30">
-              <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-6 shadow-xl">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4 flex-1">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                      <span className="font-medium text-white">
-                        {formatAddress(
-                          selectedChatRoom.route?.from || "Unknown",
-                          30,
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex-1 flex items-center space-x-2">
-                      <div className="h-px bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 flex-1"></div>
-                      <Car className="h-4 w-4 text-blue-400" />
-                      <div className="h-px bg-gradient-to-r from-purple-400 via-blue-400 to-green-400 flex-1"></div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-white">
-                        {formatAddress(
-                          selectedChatRoom.route?.to || "Unknown",
-                          30,
-                        )}
-                      </span>
-                      <div className="w-3 h-3 bg-purple-400 rounded-full animate-pulse"></div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4 text-sm text-gray-400 ml-6">
-                    <div className="flex items-center space-x-1 bg-gray-800/30 px-3 py-1 rounded-full">
-                      <Clock className="h-3 w-3" />
-                      <span>
-                        {selectedChatRoom.route?.date || "Unknown"} •{" "}
-                        {selectedChatRoom.route?.time || "Unknown"}
-                      </span>
-                    </div>
-                    <Button
-                      onClick={() =>
-                        handleViewDetails(
-                          selectedChatRoom.rideId || selectedChatRoom.id,
-                        )
-                      }
-                      variant="outline"
-                      size="sm"
-                      className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10"
-                    >
-                      <Info className="h-4 w-4 mr-2" />
-                      View Details
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            </div>            
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 bg-gray-900/20">

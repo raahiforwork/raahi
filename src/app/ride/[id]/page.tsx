@@ -1,4 +1,3 @@
-// app/ride/[id]/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -15,10 +14,27 @@ import {
   UserCheck,
   ArrowRight,
   UserPlus,
+  Ban,
+  UserX,
+  AlertTriangle,
+  Crown,
+  Trash2,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   GoogleMap,
   useLoadScript,
@@ -35,6 +51,8 @@ import {
   increment,
   addDoc,
   serverTimestamp,
+  writeBatch,
+  deleteDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -55,6 +73,20 @@ type Participant = {
   userId: string;
 };
 
+const extractMainLocation = (address: string) => {
+  if (!address) return "";
+  const parts = address.split(",").map((part) => part.trim());
+  const mainPart =
+    parts.find(
+      (part) =>
+        part.length < 50 &&
+        !part.match(/^\d/) &&
+        !part.includes("India") &&
+        part.length > 3,
+    ) || parts[0];
+  return mainPart.length > 25 ? mainPart.substring(0, 25) + "..." : mainPart;
+};
+
 const RideDetailsPage = () => {
   const params = useParams();
   const router = useRouter();
@@ -65,6 +97,10 @@ const RideDetailsPage = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [cancellingRide, setCancellingRide] = useState(false);
+  const [removingUser, setRemovingUser] = useState<string | null>(null);
+  const [leavingRide, setLeavingRide] = useState(false);
+  const [userBookingId, setUserBookingId] = useState<string | null>(null);
   const [directions, setDirections] =
     useState<google.maps.DirectionsResult | null>(null);
   const [userBookedRides, setUserBookedRides] = useState<string[]>([]);
@@ -92,7 +128,12 @@ const RideDetailsPage = () => {
         where("status", "==", "active"),
       );
       const querySnapshot = await getDocs(q);
-      return !querySnapshot.empty;
+
+      if (!querySnapshot.empty) {
+        setUserBookingId(querySnapshot.docs[0].id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error("Error checking booking:", error);
       return false;
@@ -151,6 +192,7 @@ const RideDetailsPage = () => {
           const bookingsQuery = query(
             collection(db, "bookings"),
             where("rideId", "==", rideId),
+            where("status", "==", "active"),
           );
           const bookingsSnapshot = await getDocs(bookingsQuery);
 
@@ -253,7 +295,11 @@ const RideDetailsPage = () => {
         status: "active",
       };
 
-      await addDoc(collection(db, "bookings"), bookingData);
+      const bookingDocRef = await addDoc(
+        collection(db, "bookings"),
+        bookingData,
+      );
+      setUserBookingId(bookingDocRef.id);
 
       const updates: any = {
         availableSeats: increment(-1),
@@ -305,7 +351,7 @@ const RideDetailsPage = () => {
       setParticipants((prev) => [
         ...prev,
         {
-          id: Date.now().toString(),
+          id: bookingDocRef.id,
           name: bookingData.userName,
           email: bookingData.userEmail,
           joinedAt: new Date().toLocaleDateString(),
@@ -323,6 +369,215 @@ const RideDetailsPage = () => {
     } finally {
       setBookingLoading(false);
     }
+  };
+
+  const handleLeaveRide = async () => {
+    if (!user?.uid || !ride || !userBookingId) return;
+    setLeavingRide(true);
+
+    try {
+      const batch = writeBatch(db);
+
+      const rideRef = doc(db, "Rides", ride.id);
+      const rideDoc = await getDoc(rideRef);
+
+      if (!rideDoc.exists()) {
+        throw new Error("Ride not found");
+      }
+
+      const fullRideData = rideDoc.data();
+
+      const bookingRef = doc(db, "bookings", userBookingId);
+      batch.delete(bookingRef);
+
+      const rideHistoryRef = doc(
+        collection(db, "users", user.uid, "rideHistory"),
+      );
+      batch.set(rideHistoryRef, {
+        ...fullRideData,
+        leftAt: serverTimestamp(),
+        status: "left",
+        reason: "user_left",
+      });
+
+      batch.update(rideRef, {
+        availableSeats: increment(1),
+      });
+
+      await batch.commit();
+
+      try {
+        const chatRoomId = await chatService.findChatRoomByRide(ride.id);
+        if (chatRoomId) {
+          await chatService.leaveChatRoom(chatRoomId, user.uid);
+          console.log("Successfully left chat room");
+        }
+      } catch (chatError) {
+        console.error("Error leaving chat room:", chatError);
+      }
+
+      setUserBookedRides((prev) => prev.filter((id) => id !== ride.id));
+      setUserBookingId(null);
+
+      setRide((prev) =>
+        prev
+          ? {
+              ...prev,
+              availableSeats: prev.availableSeats + 1,
+            }
+          : null,
+      );
+
+      setParticipants((prev) => prev.filter((p) => p.userId !== user.uid));
+
+      toast.success("You have left the ride successfully.");
+    } catch (error) {
+      console.error("Error leaving ride:", error);
+      toast.error("Failed to leave ride: " + String(error));
+    }
+
+    setLeavingRide(false);
+  };
+
+  const handleCancelRide = async () => {
+    if (!user?.uid || !ride) return;
+    setCancellingRide(true);
+
+    try {
+      const rideRef = doc(db, "Rides", ride.id);
+      const rideDoc = await getDoc(rideRef);
+
+      if (!rideDoc.exists()) {
+        throw new Error("Ride not found");
+      }
+
+      const fullRideData = rideDoc.data();
+      const batch = writeBatch(db);
+
+      batch.delete(rideRef);
+
+      const rideHistoryRef = doc(
+        collection(db, "users", user.uid, "rideHistory"),
+      );
+      batch.set(rideHistoryRef, {
+        ...fullRideData,
+        cancelledAt: serverTimestamp(),
+        status: "cancelled",
+        reason: "cancelled_by_creator",
+      });
+
+      const bookingsQuery = query(
+        collection(db, "bookings"),
+        where("rideId", "==", ride.id),
+      );
+      const bookingsSnapshot = await getDocs(bookingsQuery);
+
+      bookingsSnapshot.docs.forEach((bookingDoc) => {
+        batch.delete(bookingDoc.ref);
+
+        const bookingData = bookingDoc.data();
+        if (bookingData.userId !== user.uid) {
+          const userRideHistoryRef = doc(
+            collection(db, "users", bookingData.userId, "rideHistory"),
+          );
+          batch.set(userRideHistoryRef, {
+            ...fullRideData,
+            cancelledAt: serverTimestamp(),
+            status: "cancelled",
+            reason: "cancelled_by_creator",
+          });
+        }
+      });
+
+      await batch.commit();
+
+      try {
+        const chatRoomId = await chatService.findChatRoomByRide(ride.id);
+        if (chatRoomId) {
+          await chatService.permanentlyDeleteChat(chatRoomId);
+          console.log("Successfully deleted chat room");
+        }
+      } catch (chatError) {
+        console.error("Error deleting chat room:", chatError);
+      }
+
+      toast.success(
+        "Ride cancelled successfully. All booked users have been notified.",
+      );
+      router.push("/dashboard");
+    } catch (error) {
+      console.error("Error cancelling ride:", error);
+      toast.error("Failed to cancel ride: " + String(error));
+    }
+
+    setCancellingRide(false);
+  };
+
+  const handleRemoveUser = async (participant: Participant) => {
+    if (!user?.uid || !ride || !isCreator) return;
+    setRemovingUser(participant.id);
+
+    try {
+      const batch = writeBatch(db);
+
+      const rideRef = doc(db, "Rides", ride.id);
+      const rideDoc = await getDoc(rideRef);
+
+      if (!rideDoc.exists()) {
+        throw new Error("Ride not found");
+      }
+
+      const fullRideData = rideDoc.data();
+
+      const bookingRef = doc(db, "bookings", participant.id);
+      batch.delete(bookingRef);
+
+      const userRideHistoryRef = doc(
+        collection(db, "users", participant.userId, "rideHistory"),
+      );
+      batch.set(userRideHistoryRef, {
+        ...fullRideData,
+        removedAt: serverTimestamp(),
+        status: "removed",
+        reason: "removed_by_creator",
+      });
+
+      batch.update(rideRef, {
+        availableSeats: increment(1),
+      });
+
+      await batch.commit();
+
+      try {
+        const chatRoomId = await chatService.findChatRoomByRide(ride.id);
+        if (chatRoomId) {
+          await chatService.removeFromChatRoom(chatRoomId, participant.userId);
+          console.log(
+            `Successfully removed ${participant.name} from chat room`,
+          );
+        }
+      } catch (chatError) {
+        console.error("Error removing user from chat room:", chatError);
+      }
+
+      setParticipants((prev) => prev.filter((p) => p.id !== participant.id));
+
+      setRide((prev) =>
+        prev
+          ? {
+              ...prev,
+              availableSeats: prev.availableSeats + 1,
+            }
+          : null,
+      );
+
+      toast.success(`${participant.name} has been removed from the ride.`);
+    } catch (error) {
+      console.error("Error removing user:", error);
+      toast.error("Failed to remove user: " + String(error));
+    }
+
+    setRemovingUser(null);
   };
 
   const formatToAmPm = (time24: string): string => {
@@ -394,6 +649,108 @@ const RideDetailsPage = () => {
           </Button>
 
           <div className="flex items-center space-x-3">
+            {/* Cancel ride button for creators */}
+            {isCreator && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    disabled={cancellingRide}
+                    className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:border-red-500/70 transition-all duration-300"
+                  >
+                    {cancellingRide ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400 mr-2"></div>
+                        Cancelling...
+                      </>
+                    ) : (
+                      <>
+                        <Ban className="h-4 w-4 mr-2" />
+                        Cancel Ride
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-white flex items-center">
+                      <AlertTriangle className="h-5 w-5 mr-2 text-red-400" />
+                      Cancel Your Ride
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-gray-400">
+                      Are you sure you want to cancel this ride? This will:
+                      <br />• Remove the ride from the platform
+                      <br />• Cancel all bookings for this ride
+                      <br />• Notify all booked passengers
+                      <br />• This action cannot be undone
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                      Keep Ride
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleCancelRide}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Ban className="h-4 w-4 mr-2" />
+                      Cancel Ride
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
+            {/* Leave ride button for booked users (non-creators) */}
+            {isBooked && !isCreator && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    disabled={leavingRide}
+                    className="border-orange-500/50 text-orange-300 hover:bg-orange-500/10 hover:border-orange-500/70 transition-all duration-300"
+                  >
+                    {leavingRide ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-400 mr-2"></div>
+                        Leaving...
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Leave Ride
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-white flex items-center">
+                      <AlertTriangle className="h-5 w-5 mr-2 text-orange-400" />
+                      Leave This Ride?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-gray-400">
+                      Are you sure you want to leave this ride? This action will
+                      free up your seat for other travelers.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                      Stay in Ride
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleLeaveRide}
+                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Leave Ride
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
+            {/* Book ride button for non-creators */}
             {!isBooked && !isCreator && (
               <Button
                 onClick={handleBookRide}
@@ -417,10 +774,64 @@ const RideDetailsPage = () => {
               </Button>
             )}
 
+            {/* Chat button for booked users or creators */}
             {(isBooked || isCreator) && (
               <Button
-                onClick={() => router.push("/chat")}
-                className="bg-blue-600 hover:bg-blue-700"
+                onClick={async () => {
+                  if (!user?.uid) {
+                    toast.error("Please log in to access chat");
+                    return;
+                  }
+
+                  try {
+                    const chatRoomId = await chatService.findChatRoomByRide(
+                      ride.id,
+                    );
+
+                    if (!chatRoomId) {
+                      toast.error("Chat room not found for this ride");
+                      return;
+                    }
+
+                    const chatRoom = await chatService.getChatRoom(chatRoomId);
+                    const isInParticipants = chatRoom?.participants?.includes(
+                      user.uid,
+                    );
+                    const isDeletedForUser = chatRoom?.deletedFor?.includes(
+                      user.uid,
+                    );
+
+                    const needsToRejoin = !isInParticipants || isDeletedForUser;
+
+                    if (needsToRejoin && userProfile) {
+                      const userDetails = {
+                        firstName:
+                          userProfile?.firstName ||
+                          user.displayName?.split(" ")[0] ||
+                          "Anonymous",
+                        lastName:
+                          userProfile?.lastName ||
+                          user.displayName?.split(" ")[1] ||
+                          "",
+                        email: user.email || "",
+                        phone: userProfile?.phone || undefined,
+                      };
+
+                      await chatService.addUserToChatRoom(
+                        chatRoomId,
+                        user.uid,
+                        userDetails,
+                      );
+                      toast.success("Rejoined chat successfully!");
+                    }
+
+                    router.push("/chat");
+                  } catch (error) {
+                    console.error("Error accessing chat:", error);
+                    toast.error("Failed to access chat. Please try again.");
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <MessageCircle className="h-4 w-4 mr-2" />
                 Chat
@@ -429,6 +840,7 @@ const RideDetailsPage = () => {
           </div>
         </div>
 
+        {/* Rest of your JSX remains exactly the same */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6 sm:space-y-8">
@@ -454,7 +866,9 @@ const RideDetailsPage = () => {
                     {ride.toTime && ride.toTime !== "Unknown" && (
                       <div className="flex items-center">
                         <Timer className="h-4 w-4 mr-1" />
-                        <span>Arrives {ride.toTime} | {ride.toDate}</span>
+                        <span>
+                          Arrives {ride.toTime} | {ride.toDate}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -512,11 +926,8 @@ const RideDetailsPage = () => {
                     <div className="w-4 h-4 bg-purple-400 rounded-full mt-1 animate-pulse flex-shrink-0"></div>
                     <div className="flex-1">
                       <div className="font-medium text-white mb-1">
-                        {ride.toTime !== "Unknown"
-                          ? `${ride.toTime} | `
-                          : ""}
-                          {ride.toDate} |
-                        Drop-off
+                        {ride.toTime !== "Unknown" ? `${ride.toTime} | ` : ""}
+                        {ride.toDate} | Drop-off
                       </div>
                       <div className="text-sm text-gray-300 break-words leading-relaxed">
                         {ride.to}
@@ -629,7 +1040,7 @@ const RideDetailsPage = () => {
                       {ride.createdByName}
                     </span>
                     <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30 text-xs">
-                      <Car className="h-3 w-3 mr-1" />
+                      <Crown className="h-3 w-3 mr-1" />
                       Organizer
                     </Badge>
                   </div>
@@ -637,7 +1048,7 @@ const RideDetailsPage = () => {
                 </div>
               </div>
 
-              {/* Participants - No removal buttons */}
+              {/* Participants with remove option for creators */}
               {participants.map((participant) => (
                 <div
                   key={participant.id}
@@ -665,6 +1076,51 @@ const RideDetailsPage = () => {
                       Joined {participant.joinedAt}
                     </p>
                   </div>
+
+                  {/* Remove user button - only for creators */}
+                  {isCreator && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2"
+                          disabled={removingUser === participant.id}
+                        >
+                          {removingUser === participant.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
+                          ) : (
+                            <UserX className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-white flex items-center">
+                            <AlertTriangle className="h-5 w-5 mr-2 text-orange-400" />
+                            Remove {participant.name}?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription className="text-gray-400">
+                            Are you sure you want to remove {participant.name}{" "}
+                            from this ride? They will be notified of the removal
+                            and their seat will become available for others.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleRemoveUser(participant)}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            <UserX className="h-4 w-4 mr-2" />
+                            Remove User
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
               ))}
 

@@ -1925,10 +1925,15 @@ export default function ModernDashboard() {
               </div>
             ))}
 
-          {/* Rides History */}
           {activeTab === "my-rides" && (
             <div className="p-3 sm:p-6 lg:p-8">
-              <PastRides pastRides={rideHistory || []} userId={user?.uid} />
+              <PastRides
+                pastRides={rideHistory || []} 
+                userId={user?.uid || ""}
+                onDelete={(id) => {
+                  console.log("Deleted booking:", id);
+                }}
+              />
             </div>
           )}
 

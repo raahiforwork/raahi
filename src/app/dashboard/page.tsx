@@ -1543,7 +1543,7 @@ export default function ModernDashboard() {
                               : createdRide.date}
                           </p>
                           <p className="text-xl sm:text-2xl font-bold text-white mb-2">
-                            {createdRide.toTime}
+                            {formatToAmPm(createdRide.toTime)}
                           </p>
                           <p className="text-xs sm:text-sm text-gray-400 truncate mb-3">
                             {createdRide.to}

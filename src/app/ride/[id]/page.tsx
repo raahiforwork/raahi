@@ -197,7 +197,6 @@ const RideDetailsPage = () => {
     fetchUserProfile();
   }, [rideId, router, user?.uid]);
 
-  // Fetch directions when ride data is available
   useEffect(() => {
     if (!ride || !isLoaded || typeof window === "undefined") return;
 
@@ -235,7 +234,6 @@ const RideDetailsPage = () => {
     setBookingLoading(true);
 
     try {
-      // 1. Check if user has already booked this ride
       const alreadyBooked = await checkIfUserBookedRide(ride.id);
       if (alreadyBooked) {
         toast.error("You have already booked this ride!");
@@ -243,7 +241,6 @@ const RideDetailsPage = () => {
         return;
       }
 
-      // 2. Create booking document
       const bookingData = {
         rideId: ride.id,
         userId: user.uid,
@@ -258,7 +255,6 @@ const RideDetailsPage = () => {
 
       await addDoc(collection(db, "bookings"), bookingData);
 
-      // 3. Update ride availability
       const updates: any = {
         availableSeats: increment(-1),
       };
@@ -269,7 +265,6 @@ const RideDetailsPage = () => {
 
       await updateDoc(doc(db, "Rides", ride.id), updates);
 
-      // 4. Join chat room
       try {
         const chatRoomId = await chatService.findChatRoomByRide(ride.id);
 
@@ -292,7 +287,6 @@ const RideDetailsPage = () => {
         console.error("Error joining chat room:", chatError);
       }
 
-      // 5. Update local state
       setUserBookedRides((prev) => [
         ...prev.filter((id) => id !== ride.id),
         ride.id,

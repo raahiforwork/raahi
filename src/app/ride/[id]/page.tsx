@@ -454,7 +454,7 @@ const RideDetailsPage = () => {
                     {ride.toTime && ride.toTime !== "Unknown" && (
                       <div className="flex items-center">
                         <Timer className="h-4 w-4 mr-1" />
-                        <span>Arrives {ride.toTime}</span>
+                        <span>Arrives {ride.toTime} | {ride.toDate}</span>
                       </div>
                     )}
                   </div>
@@ -494,7 +494,7 @@ const RideDetailsPage = () => {
                     <div className="w-4 h-4 bg-green-400 rounded-full mt-1 animate-pulse flex-shrink-0"></div>
                     <div className="flex-1">
                       <div className="font-medium text-white mb-1">
-                        {formatToAmPm(ride.time)} - Pickup
+                        {formatToAmPm(ride.time)} | {ride.date} | Pickup
                       </div>
                       <div className="text-sm text-gray-300 break-words leading-relaxed">
                         {ride.from}
@@ -513,8 +513,9 @@ const RideDetailsPage = () => {
                     <div className="flex-1">
                       <div className="font-medium text-white mb-1">
                         {ride.toTime !== "Unknown"
-                          ? `${formatToAmPm(ride.toTime)} - `
+                          ? `${ride.toTime} | `
                           : ""}
+                          {ride.toDate} |
                         Drop-off
                       </div>
                       <div className="text-sm text-gray-300 break-words leading-relaxed">

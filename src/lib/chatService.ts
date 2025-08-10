@@ -14,6 +14,7 @@ import {
   getDoc,
   deleteDoc,
   arrayRemove,
+  increment,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { User } from "firebase/auth";
@@ -42,6 +43,7 @@ export interface ChatRoom {
     };
   };
   createdAt: Timestamp | null;
+  createdBy?: string; // Add this field
   lastMessage?: {
     text: string;
     senderName: string;
@@ -53,7 +55,7 @@ export interface ChatRoom {
     date: string;
     time: string;
   };
-  deletedFor?: string[]; // Add this line
+  deletedFor?: string[];
 }
 
 export interface RideBooking {
@@ -91,8 +93,9 @@ class ChatService {
           [booking.userId]: booking.userDetails,
         },
         createdAt: serverTimestamp() as Timestamp,
+        createdBy: booking.userId,
         route: booking.route,
-        deletedFor: [], // Initialize empty array
+        deletedFor: [],
       };
 
       const docRef = await addDoc(collection(db, "chatRooms"), chatRoomData);
@@ -118,6 +121,10 @@ class ChatService {
         // Remove user from deletedFor array if they're rejoining
         deletedFor: arrayRemove(userId),
       });
+
+      // Send a system message about the join
+      await this.sendSystemMessage(chatRoomId, `${userDetails.firstName} ${userDetails.lastName} joined the chat`);
+      
     } catch (error) {
       console.error("Error joining chat room:", error);
       throw error;
@@ -145,7 +152,322 @@ class ChatService {
     }
   }
 
-  // Delete chat room for a specific user (soft delete)
+// Leave chat room (removes user from participants)
+async leaveChatRoom(chatRoomId: string, userId: string): Promise<void> {
+  try {
+    const chatRoomRef = doc(db, "chatRooms", chatRoomId);
+    const chatRoomDoc = await getDoc(chatRoomRef);
+    
+    if (!chatRoomDoc.exists()) {
+      throw new Error("Chat room not found");
+    }
+
+    const chatRoomData = chatRoomDoc.data() as ChatRoom;
+    const userDetails = chatRoomData.participantDetails[userId];
+    
+    // Check if user is actually a participant
+    if (!chatRoomData.participants?.includes(userId)) {
+      throw new Error("User is not a participant of this chat");
+    }
+    
+    // 🔥 SEND SYSTEM MESSAGE FIRST (before removing user)
+    if (userDetails) {
+      await this.sendSystemMessage(chatRoomId, `${userDetails.firstName} ${userDetails.lastName} left the chat`);
+    }
+    
+    // Then remove user from participants array
+    await updateDoc(chatRoomRef, {
+      participants: arrayRemove(userId),
+      [`participantDetails.${userId}`]: null,
+    });
+
+    // Rest of your existing code...
+    const bookingsQuery = query(
+      collection(db, "bookings"),
+      where("rideId", "==", chatRoomData.rideId),
+      where("userId", "==", userId)
+    );
+    
+    const bookingsSnapshot = await getDocs(bookingsQuery);
+    
+    const updatePromises = bookingsSnapshot.docs.map(bookingDoc =>
+      updateDoc(doc(db, "bookings", bookingDoc.id), {
+        status: "left"
+      })
+    );
+    
+    await Promise.all(updatePromises);
+
+    const rideRef = doc(db, "Rides", chatRoomData.rideId);
+    await updateDoc(rideRef, {
+      availableSeats: increment(1),
+      status: "active"
+    });
+
+  } catch (error) {
+    console.error("Error leaving chat room:", error);
+    throw error;
+  }
+}
+
+
+
+  // Remove participant from chat room (for organizers)
+  async removeFromChatRoom(chatRoomId: string, userId: string): Promise<void> {
+    try {
+      const chatRoomRef = doc(db, "chatRooms", chatRoomId);
+      const chatRoomDoc = await getDoc(chatRoomRef);
+      
+      if (!chatRoomDoc.exists()) {
+        throw new Error("Chat room not found");
+      }
+
+      const chatRoomData = chatRoomDoc.data() as ChatRoom;
+      const userDetails = chatRoomData.participantDetails[userId];
+      
+      // Remove user from participants array
+      await updateDoc(chatRoomRef, {
+        participants: arrayRemove(userId),
+        [`participantDetails.${userId}`]: null,
+      });
+
+      // Update related booking
+      const bookingsQuery = query(
+        collection(db, "bookings"),
+        where("rideId", "==", chatRoomData.rideId),
+        where("userId", "==", userId)
+      );
+      
+      const bookingsSnapshot = await getDocs(bookingsQuery);
+      
+      // Delete the booking entirely when removed by organizer
+      const deletePromises = bookingsSnapshot.docs.map(bookingDoc =>
+        deleteDoc(bookingDoc.ref)
+      );
+      
+      await Promise.all(deletePromises);
+
+      // Update ride availability
+      const rideRef = doc(db, "Rides", chatRoomData.rideId);
+      await updateDoc(rideRef, {
+        availableSeats: increment(1),
+        status: "active"
+      });
+
+      // Send system message about removal
+      if (userDetails) {
+        await this.sendSystemMessage(chatRoomId, `${userDetails.firstName} ${userDetails.lastName} was removed from the chat`);
+      }
+
+    } catch (error) {
+      console.error("Error removing user from chat room:", error);
+      throw error;
+    }
+  }
+
+  // Update chat room size (for organizers)
+  async updateChatRoomSize(chatRoomId: string, newMaxSize: number): Promise<void> {
+    try {
+      const chatRoomRef = doc(db, "chatRooms", chatRoomId);
+      const chatRoomDoc = await getDoc(chatRoomRef);
+      
+      if (!chatRoomDoc.exists()) {
+        throw new Error("Chat room not found");
+      }
+
+      const chatRoomData = chatRoomDoc.data() as ChatRoom;
+      const currentParticipants = chatRoomData.participants?.length || 0;
+
+      if (newMaxSize < currentParticipants) {
+        throw new Error(`Cannot set size below current participant count (${currentParticipants})`);
+      }
+
+      // Update the associated ride's total seats
+      const rideRef = doc(db, "Rides", chatRoomData.rideId);
+      const newAvailableSeats = newMaxSize - currentParticipants;
+      
+      await updateDoc(rideRef, {
+        totalSeats: newMaxSize,
+        seats: newMaxSize.toString(),
+        availableSeats: newAvailableSeats,
+        status: newAvailableSeats > 0 ? "active" : "full"
+      });
+
+      // Send system message about size change
+      await this.sendSystemMessage(chatRoomId, `Chat room size updated to ${newMaxSize} participants`);
+
+    } catch (error) {
+      console.error("Error updating chat room size:", error);
+      throw error;
+    }
+  }
+
+  // Check if user is chat room organizer
+  async isChatRoomOrganizer(chatRoomId: string, userId: string): Promise<boolean> {
+    try {
+      const chatRoomDoc = await getDoc(doc(db, "chatRooms", chatRoomId));
+      
+      if (!chatRoomDoc.exists()) {
+        return false;
+      }
+
+      const chatRoomData = chatRoomDoc.data() as ChatRoom;
+      
+      // Check if user is the ride creator
+      const rideDoc = await getDoc(doc(db, "Rides", chatRoomData.rideId));
+      
+      if (!rideDoc.exists()) {
+        return false;
+      }
+
+      const rideData = rideDoc.data();
+      return rideData.createdBy === userId || rideData.userId === userId;
+      
+    } catch (error) {
+      console.error("Error checking if user is organizer:", error);
+      return false;
+    }
+  }
+
+  // Get chat room participants with details
+  async getChatRoomParticipants(chatRoomId: string): Promise<Array<{
+    userId: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    isOrganizer: boolean;
+  }>> {
+    try {
+      const chatRoomDoc = await getDoc(doc(db, "chatRooms", chatRoomId));
+      
+      if (!chatRoomDoc.exists()) {
+        return [];
+      }
+
+      const chatRoomData = chatRoomDoc.data() as ChatRoom;
+      const participants = chatRoomData.participants || [];
+      const participantDetails = chatRoomData.participantDetails || {};
+
+      // Get ride data to determine organizer
+      const rideDoc = await getDoc(doc(db, "Rides", chatRoomData.rideId));
+      const rideData = rideDoc.exists() ? rideDoc.data() : null;
+      const organizerId = rideData?.createdBy || rideData?.userId;
+
+      return participants.map(userId => ({
+        userId,
+        ...participantDetails[userId],
+        isOrganizer: userId === organizerId
+      }));
+
+    } catch (error) {
+      console.error("Error getting chat room participants:", error);
+      return [];
+    }
+  }
+
+  // Add user to chat room (for organizers to invite)
+  async addUserToChatRoom(
+    chatRoomId: string, 
+    userId: string, 
+    userDetails: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone?: string;
+    }
+  ): Promise<void> {
+    try {
+      const chatRoomRef = doc(db, "chatRooms", chatRoomId);
+      const chatRoomDoc = await getDoc(chatRoomRef);
+      
+      if (!chatRoomDoc.exists()) {
+        throw new Error("Chat room not found");
+      }
+
+      const chatRoomData = chatRoomDoc.data() as ChatRoom;
+      
+      // Check if user is already a participant
+      if (chatRoomData.participants?.includes(userId)) {
+        throw new Error("User is already a participant");
+      }
+
+      // Add user to participants
+      await updateDoc(chatRoomRef, {
+        participants: arrayUnion(userId),
+        [`participantDetails.${userId}`]: userDetails,
+        deletedFor: arrayRemove(userId),
+      });
+
+      // Send system message about addition
+      await this.sendSystemMessage(chatRoomId, `${userDetails.firstName} ${userDetails.lastName} was added to the chat`);
+
+    } catch (error) {
+      console.error("Error adding user to chat room:", error);
+      throw error;
+    }
+  }
+
+  // Get chat room by ride ID with full details
+  async getChatRoomByRideId(rideId: string): Promise<ChatRoom | null> {
+    try {
+      const q = query(
+        collection(db, "chatRooms"),
+        where("rideId", "==", rideId)
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        return {
+          id: doc.id,
+          ...doc.data(),
+        } as ChatRoom;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error getting chat room by ride ID:", error);
+      throw error;
+    }
+  }
+
+async sendSystemMessage(chatRoomId: string, messageText: string): Promise<void> {
+  try {
+    const chatRoomRef = doc(db, "chatRooms", chatRoomId);
+    const chatRoomDoc = await getDoc(chatRoomRef);
+    
+    if (!chatRoomDoc.exists()) {
+      throw new Error("Chat room not found");
+    }
+    
+    const systemMessageData = {
+      text: messageText,
+      senderId: "system",
+      senderName: "System",
+      senderEmail: "",
+      timestamp: serverTimestamp() as Timestamp,
+      chatRoomId,
+    };
+
+    await addDoc(collection(db, "messages"), systemMessageData);
+
+    await updateDoc(chatRoomRef, {
+      lastMessage: {
+        text: messageText,
+        senderName: "System",
+        timestamp: serverTimestamp(),
+      },
+    });
+
+  } catch (error) {
+    console.error("Error sending system message:", error);
+    
+  }
+}
+
+
   async deleteChatForUser(chatRoomId: string, userId: string): Promise<void> {
     try {
       const chatRoomRef = doc(db, "chatRooms", chatRoomId);
@@ -158,20 +480,16 @@ class ChatService {
       const chatRoomData = chatRoomDoc.data() as ChatRoom;
       const participants = chatRoomData.participants || [];
       const deletedFor = chatRoomData.deletedFor || [];
-
-      // Add current user to deletedFor array
       const updatedDeletedFor = [...deletedFor, userId];
-
-      // Check if all participants have deleted the chat
       const allParticipantsDeleted = participants.every((participantId: string) =>
         updatedDeletedFor.includes(participantId)
       );
 
       if (allParticipantsDeleted) {
-        // If all participants deleted, remove the chat room completely
+     
         await this.permanentlyDeleteChat(chatRoomId);
       } else {
-        // Soft delete: just add user to deletedFor array
+
         await updateDoc(chatRoomRef, {
           deletedFor: arrayUnion(userId),
         });
@@ -182,10 +500,10 @@ class ChatService {
     }
   }
 
-  // Permanently delete chat room and all its messages
+
   async permanentlyDeleteChat(chatRoomId: string): Promise<void> {
     try {
-      // Delete all messages in the chat room
+
       const messagesQuery = query(
         collection(db, "messages"),
         where("chatRoomId", "==", chatRoomId)
@@ -193,14 +511,12 @@ class ChatService {
       
       const messagesSnapshot = await getDocs(messagesQuery);
       
-      // Delete messages in batches
       const deletePromises = messagesSnapshot.docs.map(messageDoc =>
         deleteDoc(messageDoc.ref)
       );
       
       await Promise.all(deletePromises);
 
-      // Delete the chat room document
       const chatRoomRef = doc(db, "chatRooms", chatRoomId);
       await deleteDoc(chatRoomRef);
     } catch (error) {
@@ -209,7 +525,7 @@ class ChatService {
     }
   }
 
-  // Restore chat for user (remove from deletedFor array)
+
   async restoreChatForUser(chatRoomId: string, userId: string): Promise<void> {
     try {
       const chatRoomRef = doc(db, "chatRooms", chatRoomId);
@@ -223,7 +539,7 @@ class ChatService {
     }
   }
 
-  // Check if chat is deleted for a specific user
+
   async isChatDeletedForUser(chatRoomId: string, userId: string): Promise<boolean> {
     try {
       const chatRoomDoc = await getDoc(doc(db, "chatRooms", chatRoomId));
@@ -242,14 +558,13 @@ class ChatService {
     }
   }
 
-  // Send a message to a chat room
   async sendMessage(
     chatRoomId: string,
     text: string,
     user: User,
   ): Promise<void> {
     try {
-      // Get user details from the chat room
+      
       const chatRoomRef = doc(db, "chatRooms", chatRoomId);
       const chatRoomDoc = await getDoc(chatRoomRef);
 
@@ -317,7 +632,7 @@ class ChatService {
         } as ChatMessage);
       });
 
-      // Sort by timestamp on the client side to avoid composite index requirement
+      // Sort by timestamp on the client side
       messages.sort((a, b) => {
         if (!a.timestamp || !b.timestamp) return 0;
         return a.timestamp.toMillis() - b.timestamp.toMillis();
@@ -352,7 +667,7 @@ class ChatService {
         }
       });
 
-      // Sort by createdAt on the client side to avoid composite index requirement
+      // Sort by createdAt on the client side
       chatRooms.sort((a, b) => {
         if (!a.createdAt || !b.createdAt) return 0;
         return b.createdAt.toMillis() - a.createdAt.toMillis();
@@ -382,7 +697,7 @@ class ChatService {
     }
   }
 
-
+  // Get all chat rooms
   async getAllChatRooms(): Promise<ChatRoom[]> {
     try {
       const querySnapshot = await getDocs(collection(db, "chatRooms"));

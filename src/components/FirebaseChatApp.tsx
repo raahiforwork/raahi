@@ -24,6 +24,10 @@ import {
   Trash2,
   X,
   ChevronRight,
+  LogOut,
+  Info,
+  Settings,
+  UserX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +55,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { chatService } from "@/lib/chatService";
@@ -67,21 +72,17 @@ const nunito = Nunito({ subsets: ["latin"], weight: ["400", "700"] });
 
 const formatMessageTime = (timestamp: any) => {
   if (!timestamp) return "";
-  
+
   try {
     let date;
-    
-    if (timestamp && typeof timestamp.toDate === 'function') {
+
+    if (timestamp && typeof timestamp.toDate === "function") {
       date = timestamp.toDate();
-    }
-    
-    else if (timestamp && timestamp.seconds) {
+    } else if (timestamp && timestamp.seconds) {
       date = new Date(timestamp.seconds * 1000);
-    }
-    else if (timestamp) {
+    } else if (timestamp) {
       date = new Date(timestamp);
-    }
-    else {
+    } else {
       return "";
     }
 
@@ -105,21 +106,16 @@ const formatLastMessageTime = (timestamp: any) => {
 
   try {
     let date;
-    
-    if (timestamp && typeof timestamp.toDate === 'function') {
+
+    if (timestamp && typeof timestamp.toDate === "function") {
       date = timestamp.toDate();
-    }
-    else if (timestamp && timestamp.seconds) {
+    } else if (timestamp && timestamp.seconds) {
       date = new Date(timestamp.seconds * 1000);
-    }
-  
-    else if (timestamp) {
+    } else if (timestamp) {
       date = new Date(timestamp);
-    }
-    else {
+    } else {
       return "";
     }
-
 
     if (isNaN(date.getTime())) {
       return "";
@@ -149,17 +145,15 @@ const formatLastMessageTime = (timestamp: any) => {
 const formatAddress = (address: string, maxLength: number = 20) => {
   if (!address) return "";
   if (address.length <= maxLength) return address;
-  
 
-  const parts = address.split(',');
+  const parts = address.split(",");
   if (parts.length > 1) {
-    
     const firstPart = parts[0].trim();
     if (firstPart.length <= maxLength) {
       return firstPart;
     }
   }
-  
+
   return address.substring(0, maxLength) + "...";
 };
 
@@ -173,6 +167,7 @@ export default function ModernChatApp() {
   const [messages, setMessages] = React.useState<any[]>([]);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isLeaving, setIsLeaving] = React.useState(false);
 
   const currentUser = {
     uid: user?.uid || "anonymous",
@@ -181,20 +176,43 @@ export default function ModernChatApp() {
     email: user?.email || "user@example.com",
   };
 
+  const handleChatSelect = (room: any) => {
+    setSelectedChatRoom(room);
+    setShowChatList(false); 
+  };
+
+  const handleBackToList = () => {
+    setShowChatList(true);
+   
+    if (window.innerWidth < 768) {
+      setSelectedChatRoom(null);
+    }
+  };
+
+
+  const filteredChatRooms = React.useMemo(() => {
+    if (!searchQuery.trim()) return chatRooms;
+
+    return chatRooms.filter(
+      (room) =>
+        room.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        room.route?.from?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        room.route?.to?.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [chatRooms, searchQuery]);
+
   const handleDeleteChat = async (chatRoomId: string) => {
     if (!user || !chatRoomId) return;
 
     setIsDeleting(true);
-    
+
     try {
       await chatService.deleteChatForUser(chatRoomId, user.uid);
-      
-      
-      setChatRooms(prevRooms => 
-        prevRooms.filter(room => room.id !== chatRoomId)
+
+      setChatRooms((prevRooms) =>
+        prevRooms.filter((room) => room.id !== chatRoomId),
       );
-      
-     
+
       if (selectedChatRoom?.id === chatRoomId) {
         setSelectedChatRoom(null);
         setShowChatList(true);
@@ -209,28 +227,79 @@ export default function ModernChatApp() {
     }
   };
 
- 
-  const handleChatSelect = (room: any) => {
-    setSelectedChatRoom(room);
-    setShowChatList(false); 
+  const handleLeaveChat = async (chatRoomId: string) => {
+    if (!user || !chatRoomId) return;
+
+    setIsLeaving(true);
+
+    try {
+      await chatService.leaveChatRoom(chatRoomId, user.uid);
+
+      setChatRooms((prevRooms) =>
+        prevRooms.filter((room) => room.id !== chatRoomId),
+      );
+      if (selectedChatRoom?.id === chatRoomId) {
+        setSelectedChatRoom(null);
+        setShowChatList(true);
+      }
+      setMessages([]);
+
+      toast.success("Successfully left the chat");
+    } catch (error) {
+      console.error("Error leaving chat:", error);
+      toast.error("Failed to leave chat. Please try again.");
+    } finally {
+      setIsLeaving(false);
+    }
   };
 
- 
-  const handleBackToList = () => {
-    setShowChatList(true);
- 
+  const handleViewDetails = (rideId: string) => {
+    router.push(`/chat/details/${rideId}`);
   };
+
+  const isUserOrganizer = (chatRoom: any) => {
+    return user?.uid && chatRoom?.createdBy === user.uid;
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedChatRoom) return;
+
+    try {
+      await chatService.sendMessage(
+        selectedChatRoom.id,
+        newMessage.trim(),
+        user!,
+      );
+      setNewMessage("");
+      toast.success("Message sent!");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
+    }
+  };
+
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
 
   React.useEffect(() => {
     if (!user?.uid) return;
 
-    const unsubscribe = chatService.subscribeToUserChatRooms(user.uid, (rooms) => {
-      setChatRooms(rooms);
-    
-      if (rooms.length > 0 && !selectedChatRoom && window.innerWidth >= 768) {
-        setSelectedChatRoom(rooms[0]);
-      }
-    });
+    const unsubscribe = chatService.subscribeToUserChatRooms(
+      user.uid,
+      (rooms) => {
+        setChatRooms(rooms);
+   
+        if (rooms.length > 0 && !selectedChatRoom && window.innerWidth >= 768) {
+          setSelectedChatRoom(rooms[0]);
+        }
+      },
+    );
 
     return () => unsubscribe();
   }, [user?.uid]);
@@ -248,45 +317,16 @@ export default function ModernChatApp() {
     return () => unsubscribe();
   }, [selectedChatRoom]);
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedChatRoom) return;
-
-    try {
-      await chatService.sendMessage(selectedChatRoom.id, newMessage.trim(), user!);
-      setNewMessage("");
-      toast.success("Message sent!");
-    } catch (error) {
-      console.error("Error sending message:", error);
-      toast.error("Failed to send message");
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
- 
-  const filteredChatRooms = React.useMemo(() => {
-    if (!searchQuery.trim()) return chatRooms;
-    
-    return chatRooms.filter(room => 
-      room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      room.route.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      room.route.to.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [chatRooms, searchQuery]);
-
+  // MISSING: No chats empty state
   if (chatRooms.length === 0) {
     return (
-      <div className={`min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900 flex items-center justify-center ${nunito.className}`}>
-        
+      <div
+        className={`min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900 flex items-center justify-center ${nunito.className}`}
+      >
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-900/20 via-transparent to-transparent" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-green-500/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
-        
+
         <div className="relative z-10 bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-xl rounded-2xl border border-green-800/30 p-8 shadow-2xl max-w-md w-full mx-4">
           <div className="text-center">
             <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl w-fit mx-auto mb-6 shadow-lg">
@@ -310,14 +350,18 @@ export default function ModernChatApp() {
   }
 
   return (
-    <div className={`h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900 flex ${nunito.className}`}>
+    <div
+      className={`h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900 flex ${nunito.className}`}
+    >
       {/* Background decorative elements */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-900/20 via-transparent to-transparent" />
       <div className="absolute top-0 right-0 w-96 h-96 bg-green-500/5 rounded-full blur-3xl" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
 
-      
-      <div className={`${showChatList ? "flex" : "hidden"} md:flex md:w-80 lg:w-96 w-full relative z-10 bg-gray-900/50 backdrop-blur-xl border-r border-green-800/30 flex-col`}>
+      {/* Chat List Sidebar */}
+      <div
+        className={`${showChatList ? "flex" : "hidden"} md:flex md:w-80 lg:w-96 w-full relative z-10 bg-gray-900/50 backdrop-blur-xl border-r border-green-800/30 flex-col`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-green-800/30 bg-gradient-to-r from-gray-900/80 to-gray-800/80">
           <div className="flex items-center space-x-3">
@@ -333,9 +377,7 @@ export default function ModernChatApp() {
               <h1 className="text-xl font-bold bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Raahi Chat
               </h1>
-              <p className="text-sm text-gray-400">
-                Your ride conversations
-              </p>
+              <p className="text-sm text-gray-400">Your ride conversations</p>
             </div>
           </div>
         </div>
@@ -353,18 +395,22 @@ export default function ModernChatApp() {
           </div>
         </div>
 
-        {/* Chat Rooms List */}
+        {/* Enhanced Chat Rooms List */}
         <div className="flex-1 overflow-y-auto">
           {filteredChatRooms.length === 0 ? (
             <div className="p-4 text-center text-gray-400">
-              {searchQuery ? "No conversations match your search" : "No chat rooms yet. Book a ride to start chatting!"}
+              {searchQuery
+                ? "No conversations match your search"
+                : "No chat rooms yet. Book a ride to start chatting!"}
             </div>
           ) : (
-            filteredChatRooms.map((room) => (
+            filteredChatRooms.map((room: any) => (
               <div
                 key={room.id}
                 className={`group relative p-4 border-b border-gray-700/30 hover:bg-gray-800/30 cursor-pointer transition-all duration-300 active:bg-gray-800/40 ${
-                  selectedChatRoom?.id === room.id ? "bg-gray-800/50 border-green-500/30" : ""
+                  selectedChatRoom?.id === room.id
+                    ? "bg-gray-800/50 border-green-500/30"
+                    : ""
                 }`}
                 onClick={() => handleChatSelect(room)}
               >
@@ -372,7 +418,9 @@ export default function ModernChatApp() {
                   <div className="relative">
                     <Avatar className="h-12 w-12 ring-2 ring-green-500/30">
                       <AvatarFallback className="bg-gradient-to-br from-green-500 to-green-600 text-white font-bold">
-                        {formatAddress(room.route.from, 1).charAt(0).toUpperCase()}
+                        {formatAddress(room.route?.from || "R", 1)
+                          .charAt(0)
+                          .toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900 animate-pulse"></div>
@@ -382,18 +430,25 @@ export default function ModernChatApp() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2 flex-1 min-w-0">
                         <span className="font-semibold text-white text-sm">
-                          {formatAddress(room.route.from, 15)}
+                          {formatAddress(room.route?.from || "Unknown", 15)}
                         </span>
                         <ChevronRight className="h-3 w-3 text-gray-400 flex-shrink-0" />
                         <span className="font-semibold text-white text-sm truncate">
-                          {formatAddress(room.route.to, 15)}
+                          {formatAddress(room.route?.to || "Unknown", 15)}
                         </span>
+                       
+                        {isUserOrganizer(room) && (
+                          <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30 text-xs">
+                            Host
+                          </Badge>
+                        )}
                       </div>
                       <span className="text-xs text-gray-400 ml-2 flex-shrink-0">
-                        {room.lastMessage && formatLastMessageTime(room.lastMessage.timestamp)}
+                        {room.lastMessage &&
+                          formatLastMessageTime(room.lastMessage.timestamp)}
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-sm text-gray-400 truncate flex-1 min-w-0 pr-2">
                         {room.lastMessage
@@ -402,56 +457,138 @@ export default function ModernChatApp() {
                       </p>
                       <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs flex-shrink-0">
                         <Users className="h-3 w-3 mr-1" />
-                        {room.participants.length}
+                        {room.participants?.length || 0}
                       </Badge>
                     </div>
 
-                    {/* Route info - Mobile optimized */}
                     <div className="flex items-center mt-2 text-xs text-gray-500">
                       <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
                       <span className="truncate">
-                        {room.route.date} • {room.route.time}
+                        {room.route?.date || "Unknown"} •{" "}
+                        {room.route?.time || "Unknown"}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Delete Button - Hidden on mobile in list view */}
+                {/* Enhanced Action Menu for Desktop */}
                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden md:block">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-full"
-                        disabled={isDeleting}
+                        className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-full"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <MoreVertical className="h-4 w-4" />
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="bg-gray-900 border-gray-700">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="text-white">Delete Chat</AlertDialogTitle>
-                        <AlertDialogDescription className="text-gray-400">
-                          Are you sure you want to delete this chat? This action cannot be undone. 
-                          The chat will be removed from your view, but other participants can still see it.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700">
-                          Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction 
-                          onClick={() => handleDeleteChat(room.id)}
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                          disabled={isDeleting}
-                        >
-                          {isDeleting ? "Deleting..." : "Delete Chat"}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-gray-800 border-gray-700">
+                      <DropdownMenuItem
+                        className="text-gray-300 focus:text-white focus:bg-gray-700 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(room.rideId || room.id);
+                        }}
+                      >
+                        <Info className="h-4 w-4 mr-2" />
+                        View Details
+                      </DropdownMenuItem>
+
+                      <DropdownMenuSeparator className="bg-gray-700" />
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem
+                            className="text-orange-400 focus:text-orange-300 focus:bg-orange-500/10 cursor-pointer"
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <LogOut className="h-4 w-4 mr-2" />
+                            Leave Chat
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-gray-900 border-gray-700">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-white">
+                              Leave Chat
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="text-gray-400">
+                              Are you sure you want to leave this chat? You
+                              will:
+                              <ul className="mt-2 list-disc list-inside text-sm">
+                                <li>
+                                  No longer receive messages from this group
+                                </li>
+                                <li>
+                                  Need to be re-added by the organizer to rejoin
+                                </li>
+                                <li>Your booking will be marked as 'left'</li>
+                                <li>
+                                  A seat will become available for other users
+                                </li>
+                              </ul>
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleLeaveChat(room.id)}
+                              className="bg-orange-600 hover:bg-orange-700"
+                              disabled={isLeaving}
+                            >
+                              {isLeaving ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                  Leaving...
+                                </>
+                              ) : (
+                                "Leave Chat"
+                              )}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem
+                            className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer"
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Chat
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-gray-900 border-gray-700">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-white">
+                              Delete Chat
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="text-gray-400">
+                              Are you sure you want to delete this chat? This
+                              will remove it from your view but other
+                              participants can still see it.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteChat(room.id)}
+                              className="bg-red-600 hover:bg-red-700"
+                              disabled={isDeleting}
+                            >
+                              {isDeleting ? "Deleting..." : "Delete Chat"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             ))
@@ -459,14 +596,15 @@ export default function ModernChatApp() {
         </div>
       </div>
 
-      
-      <div className={`${!showChatList ? "flex" : "hidden"} md:flex flex-1 flex-col min-w-0 relative z-10`}>
+      {/* Chat Area */}
+      <div
+        className={`${!showChatList ? "flex" : "hidden"} md:flex flex-1 flex-col min-w-0 relative z-10`}
+      >
         {selectedChatRoom ? (
           <>
-            {/* Chat Header */}
+            {/* Enhanced Chat Header with Details Button */}
             <div className="flex items-center justify-between p-3 md:p-4 border-b border-green-800/30 bg-gray-900/50 backdrop-blur-xl">
               <div className="flex items-center space-x-3">
-                {/* Mobile back button */}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -475,57 +613,102 @@ export default function ModernChatApp() {
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
-                
+
                 <Avatar className="h-10 w-10 md:h-12 md:w-12 ring-2 ring-green-500/30">
                   <AvatarFallback className="bg-gradient-to-br from-green-500 to-green-600 text-white font-bold">
-                    {formatAddress(selectedChatRoom.route.from, 1).charAt(0).toUpperCase()}
+                    {formatAddress(selectedChatRoom.route?.from || "R", 1)
+                      .charAt(0)
+                      .toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                
+
                 <div className="min-w-0 flex-1">
-                  {/* Mobile: Compact address display */}
+                  {/* Mobile display */}
                   <div className="md:hidden">
                     <div className="flex items-center space-x-1 text-white">
                       <span className="font-semibold text-sm truncate max-w-[80px]">
-                        {formatAddress(selectedChatRoom.route.from, 12)}
+                        {formatAddress(
+                          selectedChatRoom.route?.from || "Unknown",
+                          12,
+                        )}
                       </span>
                       <ChevronRight className="h-3 w-3 text-gray-400 flex-shrink-0" />
                       <span className="font-semibold text-sm truncate max-w-[80px]">
-                        {formatAddress(selectedChatRoom.route.to, 12)}
+                        {formatAddress(
+                          selectedChatRoom.route?.to || "Unknown",
+                          12,
+                        )}
                       </span>
                     </div>
                     <div className="flex items-center text-xs text-gray-400">
                       <Users className="h-3 w-3 mr-1" />
-                      <span>{selectedChatRoom.participants.length} members</span>
+                      <span>
+                        {selectedChatRoom.participants?.length || 0} members
+                      </span>
+                      {isUserOrganizer(selectedChatRoom) && (
+                        <>
+                          <span className="mx-1">•</span>
+                          <span className="text-orange-400">Host</span>
+                        </>
+                      )}
                     </div>
                   </div>
-                  
-                  {/* Desktop: Full display */}
+
+                  {/* Desktop display */}
                   <div className="hidden md:block">
                     <div className="flex items-center space-x-2 text-white">
                       <span className="font-semibold">
-                        {formatAddress(selectedChatRoom.route.from, 25)}
+                        {formatAddress(
+                          selectedChatRoom.route?.from || "Unknown",
+                          25,
+                        )}
                       </span>
                       <ChevronRight className="h-4 w-4 text-gray-400" />
                       <span className="font-semibold">
-                        {formatAddress(selectedChatRoom.route.to, 25)}
+                        {formatAddress(
+                          selectedChatRoom.route?.to || "Unknown",
+                          25,
+                        )}
                       </span>
+                      {isUserOrganizer(selectedChatRoom) && (
+                        <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30">
+                          Host
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center text-sm text-gray-400">
                       <Users className="h-3 w-3 mr-1" />
-                      <span>{selectedChatRoom.participants.length} members</span>
+                      <span>
+                        {selectedChatRoom.participants?.length || 0} members
+                      </span>
                       <span className="mx-2">•</span>
                       <Calendar className="h-3 w-3 mr-1" />
                       <span>
-                        {selectedChatRoom.route.date} at {selectedChatRoom.route.time}
+                        {selectedChatRoom.route?.date || "Unknown"} at{" "}
+                        {selectedChatRoom.route?.time || "Unknown"}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-2">
-                {/* Mobile: Simplified actions */}
+                {/* Details Button - Always visible */}
+                <Button
+                  onClick={() =>
+                    handleViewDetails(
+                      selectedChatRoom.rideId || selectedChatRoom.id,
+                    )
+                  }
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10 hidden md:flex"
+                >
+                  <Info className="h-4 w-4 mr-2" />
+                  Details
+                </Button>
+
+                {/* Mobile menu */}
                 <div className="md:hidden">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -538,9 +721,59 @@ export default function ModernChatApp() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="bg-gray-800 border-gray-700">
+                      <DropdownMenuItem
+                        className="text-gray-300 focus:text-white focus:bg-gray-700 cursor-pointer"
+                        onClick={() =>
+                          handleViewDetails(
+                            selectedChatRoom.rideId || selectedChatRoom.id,
+                          )
+                        }
+                      >
+                        <Info className="h-4 w-4 mr-2" />
+                        View Details
+                      </DropdownMenuItem>
+
+                      <DropdownMenuSeparator className="bg-gray-700" />
+
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
+                            className="text-orange-400 focus:text-orange-300 focus:bg-orange-500/10 cursor-pointer"
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <LogOut className="h-4 w-4 mr-2" />
+                            Leave Chat
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-white">
+                              Leave Chat
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="text-gray-400">
+                              Are you sure you want to leave this chat?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() =>
+                                handleLeaveChat(selectedChatRoom.id)
+                              }
+                              className="bg-orange-600 hover:bg-orange-700"
+                              disabled={isLeaving}
+                            >
+                              {isLeaving ? "Leaving..." : "Leave"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem
                             className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer"
                             onSelect={(e) => e.preventDefault()}
                           >
@@ -550,21 +783,25 @@ export default function ModernChatApp() {
                         </AlertDialogTrigger>
                         <AlertDialogContent className="bg-gray-900 border-gray-700 mx-4">
                           <AlertDialogHeader>
-                            <AlertDialogTitle className="text-white">Delete Chat</AlertDialogTitle>
+                            <AlertDialogTitle className="text-white">
+                              Delete Chat
+                            </AlertDialogTitle>
                             <AlertDialogDescription className="text-gray-400">
-                              Are you sure you want to delete this chat? This action cannot be undone.
+                              Are you sure you want to delete this chat?
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
                               Cancel
                             </AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => handleDeleteChat(selectedChatRoom.id)}
+                            <AlertDialogAction
+                              onClick={() =>
+                                handleDeleteChat(selectedChatRoom.id)
+                              }
                               className="bg-red-600 hover:bg-red-700"
                               disabled={isDeleting}
                             >
-                              {isDeleting ? "Deleting..." : "Delete Chat"}
+                              {isDeleting ? "Deleting..." : "Delete"}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -572,14 +809,14 @@ export default function ModernChatApp() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                
-                {/* Desktop: Full actions */}
+
+                {/* Desktop menu */}
                 <div className="hidden md:flex items-center space-x-2">
                   <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
                     <Shield className="h-3 w-3 mr-1" />
                     Active Ride
                   </Badge>
-                  
+
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -593,7 +830,45 @@ export default function ModernChatApp() {
                     <DropdownMenuContent className="bg-gray-800 border-gray-700">
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
+                            className="text-orange-400 focus:text-orange-300 focus:bg-orange-500/10 cursor-pointer"
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <LogOut className="h-4 w-4 mr-2" />
+                            Leave Chat
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-gray-900 border-gray-700">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-white">
+                              Leave Chat
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="text-gray-400">
+                              Are you sure you want to leave this chat? You
+                              won't be able to see new messages or rejoin unless
+                              someone adds you back.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() =>
+                                handleLeaveChat(selectedChatRoom.id)
+                              }
+                              className="bg-orange-600 hover:bg-orange-700"
+                              disabled={isLeaving}
+                            >
+                              {isLeaving ? "Leaving..." : "Leave Chat"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem
                             className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer"
                             onSelect={(e) => e.preventDefault()}
                           >
@@ -603,18 +878,23 @@ export default function ModernChatApp() {
                         </AlertDialogTrigger>
                         <AlertDialogContent className="bg-gray-900 border-gray-700">
                           <AlertDialogHeader>
-                            <AlertDialogTitle className="text-white">Delete Chat</AlertDialogTitle>
+                            <AlertDialogTitle className="text-white">
+                              Delete Chat
+                            </AlertDialogTitle>
                             <AlertDialogDescription className="text-gray-400">
-                              Are you sure you want to delete this chat? This action cannot be undone. 
-                              The chat will be removed from your view, but other participants can still see it.
+                              Are you sure you want to delete this chat? This
+                              will remove it from your view but other
+                              participants can still see it.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-700">
                               Cancel
                             </AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => handleDeleteChat(selectedChatRoom.id)}
+                            <AlertDialogAction
+                              onClick={() =>
+                                handleDeleteChat(selectedChatRoom.id)
+                              }
                               className="bg-red-600 hover:bg-red-700"
                               disabled={isDeleting}
                             >
@@ -629,7 +909,7 @@ export default function ModernChatApp() {
               </div>
             </div>
 
-            {/* Enhanced Route Information Card - Hidden on mobile */}
+            {/* Enhanced Route Information Card */}
             <div className="hidden md:block p-4 bg-gray-900/30 border-b border-green-800/30">
               <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-6 shadow-xl">
                 <div className="flex items-center justify-between">
@@ -637,7 +917,10 @@ export default function ModernChatApp() {
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
                       <span className="font-medium text-white">
-                        {formatAddress(selectedChatRoom.route.from, 30)}
+                        {formatAddress(
+                          selectedChatRoom.route?.from || "Unknown",
+                          30,
+                        )}
                       </span>
                     </div>
                     <div className="flex-1 flex items-center space-x-2">
@@ -647,7 +930,10 @@ export default function ModernChatApp() {
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="font-medium text-white">
-                        {formatAddress(selectedChatRoom.route.to, 30)}
+                        {formatAddress(
+                          selectedChatRoom.route?.to || "Unknown",
+                          30,
+                        )}
                       </span>
                       <div className="w-3 h-3 bg-purple-400 rounded-full animate-pulse"></div>
                     </div>
@@ -656,9 +942,23 @@ export default function ModernChatApp() {
                     <div className="flex items-center space-x-1 bg-gray-800/30 px-3 py-1 rounded-full">
                       <Clock className="h-3 w-3" />
                       <span>
-                        {selectedChatRoom.route.date} • {selectedChatRoom.route.time}
+                        {selectedChatRoom.route?.date || "Unknown"} •{" "}
+                        {selectedChatRoom.route?.time || "Unknown"}
                       </span>
                     </div>
+                    <Button
+                      onClick={() =>
+                        handleViewDetails(
+                          selectedChatRoom.rideId || selectedChatRoom.id,
+                        )
+                      }
+                      variant="outline"
+                      size="sm"
+                      className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10"
+                    >
+                      <Info className="h-4 w-4 mr-2" />
+                      View Details
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -669,7 +969,9 @@ export default function ModernChatApp() {
               {messages.length === 0 ? (
                 <div className="text-center text-gray-400 py-8">
                   <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-600" />
-                  <h3 className="text-lg font-semibold mb-2">No messages yet</h3>
+                  <h3 className="text-lg font-semibold mb-2">
+                    No messages yet
+                  </h3>
                   <p>Start the conversation with your fellow travelers!</p>
                 </div>
               ) : (
@@ -693,12 +995,12 @@ export default function ModernChatApp() {
                             {message.senderName}
                           </div>
                         )}
-                        <p className="text-sm md:text-base leading-relaxed">{message.text}</p>
+                        <p className="text-sm md:text-base leading-relaxed">
+                          {message.text}
+                        </p>
                         <div
                           className={`flex items-center justify-end mt-2 space-x-1 text-xs ${
-                            isOwnMessage
-                              ? "text-green-100"
-                              : "text-gray-400"
+                            isOwnMessage ? "text-green-100" : "text-gray-400"
                           }`}
                         >
                           <span>{formatMessageTime(message.timestamp)}</span>

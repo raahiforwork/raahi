@@ -19,18 +19,14 @@ import {
   Users,
   Star,
   Car,
-  Filter,
   Download,
-  ArrowRight,
   Navigation,
-  DollarSign,
   MessageCircle,
   Shield,
   Award,
-  Target,
   Activity,
-  Calculator,
   X,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -636,6 +632,7 @@ export default function ModernDashboard() {
   const [isBrowser, setIsBrowser] = useState(false);
   const [availableRides, setAvailableRides] = useState<Ride[]>([]);
   const { rideHistory, loading } = useUserRideHistory(user?.uid);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const allAvailableRides = useMemo<Ride[]>(() => {
     return [...availableRides, ...(createdRide ? [createdRide] : [])];
   }, [availableRides, createdRide]);
@@ -702,35 +699,43 @@ export default function ModernDashboard() {
     fetchUserBookings();
   }, [user]);
 
+  const fetchAvailableRides = async () => {
+    try {
+      const q = query(
+        collection(db, "Rides"),
+        where("status", "==", "active"),
+        where("availableSeats", ">", 0),
+      );
+      const querySnapshot = await getDocs(q);
+
+      const rides: Ride[] = querySnapshot.docs
+        .map((doc) => {
+          const data = doc.data() as Omit<Ride, "id">;
+          return {
+            id: doc.id,
+            ...data,
+          };
+        })
+        .filter((ride) => ride.userId !== user?.uid);
+
+      setAvailableRides(rides);
+      setFilteredRides(rides);
+    } catch (error) {
+      console.error("Error fetching available rides:", error);
+      toast.error("Failed to refresh rides");
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchAvailableRides();
+    setIsRefreshing(false);
+    toast.success("Rides refreshed!");
+  };
+
   useEffect(() => {
-    const fetchAvailableRides = async () => {
-      try {
-        const q = query(
-          collection(db, "Rides"),
-          where("status", "==", "active"),
-          where("availableSeats", ">", 0),
-        );
-        const querySnapshot = await getDocs(q);
-
-        const rides: Ride[] = querySnapshot.docs
-          .map((doc) => {
-            const data = doc.data() as Omit<Ride, "id">;
-            return {
-              id: doc.id,
-              ...data,
-            };
-          })
-          .filter((ride) => ride.userId !== user?.uid);
-
-        setAvailableRides(rides);
-        setFilteredRides(rides);
-      } catch (error) {
-        console.error("Error fetching available rides:", error);
-      }
-    };
-
     fetchAvailableRides();
-  },[user?.uid]);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!user) return;
@@ -1373,7 +1378,7 @@ export default function ModernDashboard() {
 
               {/* Enhanced Available Rides List */}
               <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-3 sm:p-4 lg:p-6 shadow-xl">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+                <div className="flex flex-col items-center justify-center sm:flex-row sm:items-start sm:justify-between mb-4 sm:mb-6 gap-3">
                   <div className="flex items-center">
                     <Car className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400 mr-2" />
                     <h3 className="text-base sm:text-lg font-semibold text-white">
@@ -1383,7 +1388,23 @@ export default function ModernDashboard() {
                       {filteredRides.length} rides
                     </Badge>
                   </div>
+
+                  <Button
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    variant="outline"
+                    size="sm"
+                    className="border-green-600/50 text-green-400 hover:bg-green-600/10 hover:border-green-500 disabled:opacity-50 transition-all duration-200"
+                  >
+                    <RefreshCw
+                      className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+                    />
+                    <span className="text-xs sm:text-sm">
+                      {isRefreshing ? "Refreshing..." : "Refresh"}
+                    </span>
+                  </Button>
                 </div>
+
                 <AvailableRidesList
                   rides={filteredRides}
                   selectedRide={selectedRide}
@@ -1789,6 +1810,24 @@ export default function ModernDashboard() {
                               <SelectItem value="4">
                                 4 seats available
                               </SelectItem>
+                              <SelectItem value="5">
+                                5 seats available
+                              </SelectItem>
+                              <SelectItem value="6">
+                                6 seats available
+                              </SelectItem>
+                              <SelectItem value="7">
+                                7 seats available
+                              </SelectItem>
+                              <SelectItem value="8">
+                                8 seats available
+                              </SelectItem>
+                              <SelectItem value="9">
+                                9 seats available
+                              </SelectItem>
+                              <SelectItem value="10">
+                                10 seats available
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1928,7 +1967,7 @@ export default function ModernDashboard() {
           {activeTab === "my-rides" && (
             <div className="p-3 sm:p-6 lg:p-8">
               <PastRides
-                pastRides={rideHistory || []} 
+                pastRides={rideHistory || []}
                 userId={user?.uid || ""}
                 onDelete={(id) => {
                   console.log("Deleted booking:", id);
@@ -1938,9 +1977,7 @@ export default function ModernDashboard() {
           )}
 
           {/* Profile Content */}
-          {activeTab === "profile" && (
-            <UserProfile />
-          )}
+          {activeTab === "profile" && <UserProfile />}
         </div>
       </div>
 

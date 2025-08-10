@@ -80,6 +80,7 @@ import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 import AvailableRidesList from "@/components/dashboard/AvailableRidesList";
 import PastRides from "@/components/dashboard/PastRides";
 import { FaRupeeSign } from "react-icons/fa";
+import { UserProfile } from "@/components/dashboard/UserProfile";
 
 const nunito = Nunito({ subsets: ["latin"], weight: ["400", "700"] });
 
@@ -1318,12 +1319,12 @@ export default function ModernDashboard() {
                 </div>
 
                 {/* Bottom Row - Centered Action Buttons */}
-                <div className="flex justify-center gap-4">
+                <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
                   <Button
                     onClick={handleSearch}
-                    className="py-3 sm:py-4 px-6 sm:px-8 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-green-500/25 transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
+                    className="py-3 px-4 sm:py-4 sm:px-8 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-green-500/25 transition-all duration-300 transform hover:scale-105 text-sm sm:text-base flex-1 sm:flex-none"
                   >
-                    <Search className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                    <Search className="h-4 w-4 mr-2" />
                     Search Rides
                   </Button>
 
@@ -1345,9 +1346,9 @@ export default function ModernDashboard() {
                       setToMeta(null);
                     }}
                     variant="outline"
-                    className="py-3 sm:py-4 px-6 sm:px-8 bg-gray-800/50 border-gray-600/50 text-white hover:bg-gray-700/50 hover:border-gray-500/50 rounded-xl transition-all duration-300 text-sm sm:text-base"
+                    className="py-3 px-4 sm:py-4 sm:px-8 bg-gray-800/50 border-gray-600/50 text-white hover:bg-gray-700/50 hover:border-gray-500/50 rounded-xl transition-all duration-300 text-sm sm:text-base flex-1 sm:flex-none"
                   >
-                    <X className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                    <X className="h-4 w-4 mr-2" />
                     Clear Filters
                   </Button>
                 </div>
@@ -1933,113 +1934,7 @@ export default function ModernDashboard() {
 
           {/* Profile Content */}
           {activeTab === "profile" && (
-            <div className="p-3 sm:p-6 lg:p-8">
-              <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-orange-800/20 p-4 sm:p-6 lg:p-8 shadow-xl">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center mb-6 sm:mb-8">
-                  <div className="p-3 sm:p-4 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-lg mb-4 sm:mb-0">
-                    <User className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-                  </div>
-                  <div className="sm:ml-4">
-                    <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                      Your Profile
-                    </h3>
-                    <p className="text-gray-400 text-base sm:text-lg">
-                      Manage your account and preferences
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-                  {/* Profile Info */}
-                  <div className="space-y-6">
-                    <div className="flex items-center space-x-4 p-4 sm:p-6 bg-gray-900/50 rounded-xl border border-gray-700/30">
-                      <Avatar className="h-16 w-16 sm:h-20 sm:w-20 ring-4 ring-orange-500/30 shadow-lg">
-                        <AvatarFallback className="bg-gradient-to-br from-orange-500 to-orange-600 text-white text-lg sm:text-xl font-bold">
-                          {userProfile?.firstName?.[0]}
-                          {userProfile?.lastName?.[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h4 className="text-xl sm:text-2xl font-bold text-white">
-                          {userProfile?.firstName} {userProfile?.lastName}
-                        </h4>
-                        <p className="text-gray-400 text-sm sm:text-base">
-                          {user?.email}
-                        </p>
-                        <Badge className="mt-2 bg-green-500/20 text-green-300 border-green-500/30 px-3 py-1">
-                          <Shield className="h-3 w-3 mr-1" />
-                          Verified User
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h5 className="text-lg font-semibold text-white flex items-center">
-                        <Star className="h-4 w-4 mr-2 text-yellow-400" />
-                        Account Statistics
-                      </h5>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center p-4 bg-gray-800/30 rounded-xl">
-                          <p className="text-2xl font-bold text-green-400">
-                            12
-                          </p>
-                          <p className="text-sm text-gray-400">Rides Taken</p>
-                        </div>
-                        <div className="text-center p-4 bg-gray-800/30 rounded-xl">
-                          <p className="text-2xl font-bold text-blue-400">5</p>
-                          <p className="text-sm text-gray-400">Rides Created</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Settings & Actions */}
-                  <div className="space-y-6">
-                    <h5 className="text-lg font-semibold text-white">
-                      Settings & Actions
-                    </h5>
-
-                    <div className="space-y-3">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
-                      >
-                        <User className="h-4 w-4 mr-3" />
-                        Edit Profile
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
-                      >
-                        <Shield className="h-4 w-4 mr-3" />
-                        Privacy Settings
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
-                      >
-                        <MessageCircle className="h-4 w-4 mr-3" />
-                        Support
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-red-600 text-red-400 hover:bg-red-700 hover:text-white"
-                        onClick={() => {
-                          // Add logout functionality
-                          console.log("Logout clicked");
-                        }}
-                      >
-                        <Activity className="h-4 w-4 mr-3" />
-                        Logout
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <UserProfile />
           )}
         </div>
       </div>

@@ -53,6 +53,7 @@
     "framer-motion": "^12.23.0",
     "icons": "^1.0.0",
     "input-otp": "^1.2.4",
+    "lottie-react": "^2.4.1",
     "lucid": "^0.0.1",
     "lucide-react": "^0.462.0",
     "motion": "^12.23.0",

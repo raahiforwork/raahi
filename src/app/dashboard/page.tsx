@@ -1464,7 +1464,7 @@ export default function ModernDashboard() {
           {/* Create Ride Content */}
           {activeTab === "create-ride" &&
             (createdRide ? (
-              <div className="p-3 sm:p-6 xl2:p-8">
+              <div className="p-3 sm:p-6  mt-6 xl2:p-8">
                 <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-green-800/20 p-4 sm:p-6 xl2:p-8 shadow-xl">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center mb-4 sm:mb-6">
                     <div className="p-2 sm:p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg mb-3 sm:mb-0">
@@ -1666,7 +1666,7 @@ export default function ModernDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="p-3 sm:p-6 lg:p-8">
+              <div className="p-3 sm:p-6 mt-6 lg:p-8">
                 <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-blue-800/20 p-4 sm:p-6 lg:p-8 shadow-xl">
                   <div className="text-center mb-6 sm:mb-8 lg:mb-10">
                     <div className="p-3 sm:p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl w-fit mx-auto mb-3 sm:mb-4 shadow-lg">
@@ -2007,7 +2007,7 @@ export default function ModernDashboard() {
             ))}
 
           {activeTab === "my-rides" && (
-            <div className="p-3 sm:p-6 lg:p-8">
+            <div className="p-3 sm:p-6 lg:p-8 mt-6 sm:mt-6 lg:mt-8">
               <PastRides
                 pastRides={rideHistory || []}
                 userId={user?.uid || ""}
@@ -2018,12 +2018,12 @@ export default function ModernDashboard() {
             </div>
           )}
 
-          {/* Profile Content */}
+    
           {activeTab === "profile" && <UserProfile />}
         </div>
       </div>
 
-      {/* FloatingButton - Only show on desktop and when not on create-ride tab */}
+   
       <div className="hidden md:block fixed bottom-8 right-8 z-40">
         {activeTab !== "create-ride" && (
           <FloatingButton
@@ -2035,7 +2035,7 @@ export default function ModernDashboard() {
         )}
       </div>
 
-      {/* ── PWA INSTALL (floats bottom-left) */}
+     
       {isInstallable && !isInstalled && (
         <div className="fixed left-4 bottom-24 md:bottom-8 z-50">
           <Button

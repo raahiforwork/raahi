@@ -1,14 +1,14 @@
 "use client";
 
 import Image from "next/image";
-
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
-  updateProfile, 
+  updateProfile,
+  ActionCodeSettings,
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
@@ -59,6 +59,19 @@ const signupSchema = z
 
 type SignupForm = z.infer<typeof signupSchema>;
 
+const getErrorMessage = (errorCode: string): string => {
+  const errorMessages: Record<string, string> = {
+    'auth/email-already-in-use': 'This email is already registered. Please sign in instead.',
+    'auth/invalid-email': 'Please enter a valid email address.',
+    'auth/operation-not-allowed': 'Email/password accounts are not enabled.',
+    'auth/weak-password': 'Password is too weak. Please choose a stronger password.',
+    'auth/network-request-failed': 'Network error. Please check your connection.',
+    'auth/too-many-requests': 'Too many requests. Please try again later.',
+  };
+  
+  return errorMessages[errorCode] || 'Registration failed. Please try again.';
+};
+
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -69,21 +82,25 @@ export default function SignupPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     setValue,
     watch,
     reset,
   } = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
+    mode: "onBlur", 
   });
 
   const agreeToTerms = watch("agreeToTerms");
 
   const onSubmit = async (data: SignupForm) => {
+   
+    if (isLoading || isSubmitting) return;
+    
     setIsLoading(true);
 
     try {
- 
+     
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         data.email,
@@ -92,42 +109,63 @@ export default function SignupPage() {
 
       const user = userCredential.user;
 
-   
+
       await updateProfile(user, {
         displayName: `${data.firstName} ${data.lastName}`,
       });
 
-      await sendEmailVerification(user);
+      const actionCodeSettings: ActionCodeSettings = {
+    
+        url: `${window.location.origin}/login?verified=true`,
+        handleCodeInApp: false, 
+      };
 
+      
+      await sendEmailVerification(user, actionCodeSettings);
 
       await setDoc(doc(db, "users", user.uid), {
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email.toLowerCase(),
         phone: data.phone,
-        displayName: `${data.firstName} ${data.lastName}`, 
+        displayName: `${data.firstName} ${data.lastName}`,
         isVerified: false,
         createdAt: serverTimestamp(),
+        emailVerificationSent: serverTimestamp(),
       });
 
       toast.success(
-        "Account created! Please verify your email before logging in.",
+        "Account created successfully! Please check your email and verify your account before signing in.",
+        { duration: 6000 }
       );
+      
       reset();
+
+      setTimeout(() => {
+        router.push("/login");
+      }, 2000);
+
     } catch (err: any) {
-      const errorCode = err.code;
-      if (errorCode === "auth/email-already-in-use") {
-        toast.error("This email is already in use.");
-      } else if (errorCode === "auth/invalid-email") {
-        toast.error("Invalid email address.");
-      } else {
-        toast.error("Something went wrong. Please try again.");
-      }
+      console.error("Signup error:", err.code);
+      toast.error(getErrorMessage(err.code));
     } finally {
       setIsLoading(false);
     }
   };
 
+  const togglePasswordVisibility = () => {
+    setShowPassword(prev => !prev);
+  };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(prev => !prev);
+  };
+
+  const handleTermsChange = (checked: boolean | "indeterminate") => {
+    if (checked === true) {
+      setValue("agreeToTerms", true);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -164,68 +202,119 @@ export default function SignupPage() {
 
           <CardContent className="space-y-4">
             <form
-              onSubmit={handleSubmit(onSubmit, (formErrors) => {
-                const firstError = Object.values(formErrors)[0];
-                if (firstError?.message) {
-                  toast.error(firstError.message as string);
-                }
-              })}
+              onSubmit={handleSubmit(onSubmit)}
               className="space-y-4"
             >
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>First Name</Label>
-                  <Input placeholder="John" {...register("firstName")} />
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input 
+                    id="firstName"
+                    placeholder="John" 
+                    {...register("firstName")} 
+                    disabled={isLoading}
+                    autoComplete="given-name"
+                  />
+                  {errors.firstName && (
+                    <p className="text-sm text-destructive mt-1">
+                      {errors.firstName.message}
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <Label>Last Name</Label>
-                  <Input placeholder="Doe" {...register("lastName")} />
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input 
+                    id="lastName"
+                    placeholder="Doe" 
+                    {...register("lastName")} 
+                    disabled={isLoading}
+                    autoComplete="family-name"
+                  />
+                  {errors.lastName && (
+                    <p className="text-sm text-destructive mt-1">
+                      {errors.lastName.message}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div>
-                <Label>Email</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
+                  id="email"
+                  type="email"
                   placeholder="john@bennett.edu.in"
                   {...register("email")}
+                  disabled={isLoading}
+                  autoComplete="email"
                 />
+                {errors.email && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.email.message}
+                  </p>
+                )}
               </div>
 
               <div>
-                <Label>Phone Number</Label>
-                <Input placeholder="+91 98765 43210" {...register("phone")} />
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input 
+                  id="phone"
+                  type="tel"
+                  placeholder="+91 98765 43210" 
+                  {...register("phone")} 
+                  disabled={isLoading}
+                  autoComplete="tel"
+                />
+                {errors.phone && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.phone.message}
+                  </p>
+                )}
               </div>
 
               <div>
-                <Label>Password</Label>
+                <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Input
+                    id="password"
                     type={showPassword ? "text" : "password"}
                     {...register("password")}
+                    disabled={isLoading}
+                    autoComplete="new-password"
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     className="absolute right-2 top-1"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={togglePasswordVisibility}
+                    disabled={isLoading}
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </Button>
                 </div>
+                {errors.password && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.password.message}
+                  </p>
+                )}
               </div>
 
               <div>
-                <Label>Confirm Password</Label>
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <div className="relative">
                   <Input
+                    id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     {...register("confirmPassword")}
+                    disabled={isLoading}
+                    autoComplete="new-password"
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     className="absolute right-2 top-1"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    onClick={toggleConfirmPasswordVisibility}
+                    disabled={isLoading}
                   >
                     {showConfirmPassword ? (
                       <EyeOff size={16} />
@@ -234,17 +323,19 @@ export default function SignupPage() {
                     )}
                   </Button>
                 </div>
+                {errors.confirmPassword && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.confirmPassword.message}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="agreeToTerms"
                   checked={agreeToTerms}
-                  onCheckedChange={(checked) => {
-                    if (checked === true) {
-                      setValue("agreeToTerms", true);
-                    }
-                  }}
+                  onCheckedChange={handleTermsChange}
+                  disabled={isLoading}
                 />
                 <Label htmlFor="agreeToTerms" className="text-sm">
                   I agree to the{" "}
@@ -260,9 +351,18 @@ export default function SignupPage() {
                   </Link>
                 </Label>
               </div>
+              {errors.agreeToTerms && (
+                <p className="text-sm text-destructive">
+                  {errors.agreeToTerms.message}
+                </p>
+              )}
 
-              <Button type="submit" disabled={isLoading} className="w-full">
-                {isLoading ? "Registering..." : "Create Account"}
+              <Button 
+                type="submit" 
+                disabled={isLoading || isSubmitting} 
+                className="w-full"
+              >
+                {isLoading ? "Creating Account..." : "Create Account"}
               </Button>
             </form>
           </CardContent>

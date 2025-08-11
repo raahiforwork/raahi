@@ -107,10 +107,22 @@ export default function LoginPage() {
 
       const userData = userDoc.data();
 
+      if (!userData.isVerified || !userData.emailVerified) {
+        console.log("User verification status:", {
+          isVerified: userData.isVerified,
+          emailVerified: userData.emailVerified
+        });
+
+        await signOut(auth);
+
+        setShowEmailVerificationError(true);
+        
+        toast.error("Email verification required. Please check your email and complete verification before signing in.");
+        return;
+      }
+
       await updateDoc(userDocRef, {
         lastSignIn: serverTimestamp(),
-        emailVerified: true,
-        isVerified: true,
       });
 
       toast.success(`Welcome back, ${userData.firstName || "User"}!`);
@@ -138,16 +150,48 @@ export default function LoginPage() {
       
     } catch (error: any) {
       if (error.code === 'auth/wrong-password') {
-
         try {
           
-          toast.info("Please try signing in again if you've completed verification.");
+          toast.info("Please enter your correct password and try signing in again.");
         } catch (e) {
-
+          
         }
       } else if (error.code === 'auth/user-not-found') {
-        toast.error("No account found with this email.");
+        toast.error("No account found with this email. Please sign up first.");
+        setShowEmailVerificationError(false);
       }
+    } finally {
+      setIsCheckingVerification(false);
+    }
+  };
+
+  const resendVerificationEmail = async () => {
+    if (!lastAttemptedEmail) {
+      toast.error("Please enter your email first.");
+      return;
+    }
+
+    setIsCheckingVerification(true);
+
+    try {
+      const response = await fetch("/api/resend-verification-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: lastAttemptedEmail,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        toast.success("Verification email sent! Please check your inbox and spam folder.");
+      } else {
+        toast.error(result.message || "Failed to send verification email.");
+      }
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      toast.error("Failed to resend verification email. Please try again.");
     } finally {
       setIsCheckingVerification(false);
     }
@@ -292,29 +336,49 @@ export default function LoginPage() {
                       </div>
                       
                       <div className="space-y-2">
-                        <Button
-                          onClick={checkVerificationStatus}
-                          disabled={isCheckingVerification}
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                        >
-                          {isCheckingVerification ? (
-                            <>
-                              <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
-                              Checking...
-                            </>
-                          ) : (
-                            <>
-                              <RefreshCw className="h-3 w-3 mr-2" />
-                              Check Verification Status
-                            </>
-                          )}
-                        </Button>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            onClick={checkVerificationStatus}
+                            disabled={isCheckingVerification}
+                            variant="outline"
+                            size="sm"
+                          >
+                            {isCheckingVerification ? (
+                              <>
+                                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                Checking...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="h-3 w-3 mr-1" />
+                                Try Again
+                              </>
+                            )}
+                          </Button>
+                          
+                          <Button
+                            onClick={resendVerificationEmail}
+                            disabled={isCheckingVerification}
+                            variant="outline"
+                            size="sm"
+                          >
+                            {isCheckingVerification ? (
+                              <>
+                                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <Mail className="h-3 w-3 mr-1" />
+                                Resend Email
+                              </>
+                            )}
+                          </Button>
+                        </div>
                         
                         <p className="text-xs text-amber-600 dark:text-amber-400">
-                          If you&apos;ve already verified your email, try signing in again. 
-                          For Bennett email users, verification may happen automatically.
+                          Check your email inbox and spam folder. Click the verification link, 
+                          then try signing in again.
                         </p>
                       </div>
                     </div>

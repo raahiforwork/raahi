@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ResendVerification from "@/components/ResendVerification";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -114,7 +115,6 @@ export default function LoginPage() {
         });
 
         await signOut(auth);
-
         setShowEmailVerificationError(true);
         
         toast.error("Email verification required. Please check your email and complete verification before signing in.");
@@ -151,7 +151,6 @@ export default function LoginPage() {
     } catch (error: any) {
       if (error.code === 'auth/wrong-password') {
         try {
-          
           toast.info("Please enter your correct password and try signing in again.");
         } catch (e) {
           
@@ -164,8 +163,6 @@ export default function LoginPage() {
       setIsCheckingVerification(false);
     }
   };
-
-  
 
   const togglePasswordVisibility = () => {
     setShowPassword(prev => !prev);
@@ -286,6 +283,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
+            {/* Email Verification Error Message with Resend Button */}
             {showEmailVerificationError && (
               <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800">
                 <CardContent className="pt-4">
@@ -306,11 +304,21 @@ export default function LoginPage() {
                       </div>
                       
                       <div className="space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 gap-2">
+                          <ResendVerification
+                            email={lastAttemptedEmail}
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onSuccess={() => {
+                              toast.success("New verification email sent! Check your inbox.");
+                            }}
+                          />
+                          
                           <Button
                             onClick={checkVerificationStatus}
                             disabled={isCheckingVerification}
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                           >
                             {isCheckingVerification ? (
@@ -321,7 +329,7 @@ export default function LoginPage() {
                             ) : (
                               <>
                                 <RefreshCw className="h-3 w-3 mr-1" />
-                                Try Again
+                                Try Signing In Again
                               </>
                             )}
                           </Button>
@@ -337,6 +345,7 @@ export default function LoginPage() {
                 </CardContent>
               </Card>
             )}
+
           </CardContent>
 
           <CardFooter className="text-center">

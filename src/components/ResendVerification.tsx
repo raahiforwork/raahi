@@ -1,173 +1,141 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { 
-  signInWithEmailAndPassword, 
-  sendEmailVerification, 
-  signOut,
-  ActionCodeSettings 
-} from "firebase/auth";
-import { doc, updateDoc, increment } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Mail, Clock } from "lucide-react";
+import { Mail, RefreshCw } from "lucide-react";
 
 interface ResendVerificationProps {
   email: string;
   onSuccess?: () => void;
+  variant?: "default" | "outline" | "ghost";
+  size?: "sm" | "default" | "lg";
   className?: string;
 }
 
 export default function ResendVerification({ 
   email, 
-  onSuccess,
-  className = "" 
+  onSuccess, 
+  variant = "default",
+  size = "default",
+  className = ""
 }: ResendVerificationProps) {
   const [isResending, setIsResending] = useState(false);
-  const [cooldownTime, setCooldownTime] = useState(0);
-  const [password, setPassword] = useState("");
-  const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [lastSentTime, setLastSentTime] = useState<number | null>(null);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
   
-  useEffect(() => {
-    if (cooldownTime > 0) {
-      const timer = setInterval(() => {
-        setCooldownTime(prev => Math.max(0, prev - 1));
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [cooldownTime]);
+  const COOLDOWN_SECONDS = 180;
+
+  const isValidBennettEmail = (email: string) => {
+    return email.toLowerCase().endsWith('@bennett.edu.in');
+  };
+
+  const canResend = () => {
+    if (!lastSentTime) return true;
+    const timeSince = Date.now() - lastSentTime;
+    return timeSince >= COOLDOWN_SECONDS * 1000;
+  };
 
   const handleResend = async () => {
     if (!email) {
-      toast.error("Email address is required.");
+      toast.error("Please enter your email address");
       return;
     }
 
-    if (!password) {
-      setShowPasswordInput(true);
-      toast.error("Please enter your password to verify your identity.");
+    if (!isValidBennettEmail(email)) {
+      toast.error("Please enter a valid Bennett University email address");
       return;
     }
 
-    if (cooldownTime > 0) {
-      toast.error(`Please wait ${cooldownTime} seconds before resending.`);
+    if (!canResend()) {
+      toast.error(`Please wait ${Math.ceil(cooldownRemaining)} seconds before resending`);
       return;
     }
 
     setIsResending(true);
 
     try {
-      // Sign in temporarily to get user object
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      
+      const checkResponse = await fetch('/api/check-pending-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
 
-      // Check if already verified
-      await user.reload();
-      if (user.emailVerified) {
-        toast.success("Your email is already verified! You can now sign in.");
-        await signOut(auth);
-        onSuccess?.();
-        return;
+      if (!checkResponse.ok) {
+        const errorData = await checkResponse.json();
+        throw new Error(errorData.message || 'Failed to check verification status');
       }
 
-      // Configure verification email settings
-      const actionCodeSettings: ActionCodeSettings = {
-        url: `${window.location.origin}/login?verified=true`,
-        handleCodeInApp: false,
-      };
+      const verificationData = await checkResponse.json();
 
-      // Send verification email
-      await sendEmailVerification(user, actionCodeSettings);
+    
+      const verificationUrl = `${window.location.origin}/verify-email?token=${verificationData.token}&uid=${verificationData.userId}`;
 
-      // Update Firestore with resend info
-      try {
-        await updateDoc(doc(db, "users", user.uid), {
-          lastVerificationEmailSent: new Date(),
-          verificationEmailResendCount: increment(1),
-          updatedAt: new Date(),
-        });
-      } catch (firestoreError) {
-        console.log("Firestore update failed, but email sent successfully");
+    
+      const response = await fetch('/api/send-verification-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          firstName: verificationData.firstName,
+          lastName: verificationData.lastName,
+          verificationUrl: verificationUrl
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to send verification email');
       }
 
-      // Sign out immediately
-      await signOut(auth);
+      setLastSentTime(Date.now());
+      toast.success("Verification email sent! Check your inbox and spam folder.");
+      
+      
+      let remaining = COOLDOWN_SECONDS;
+      const timer = setInterval(() => {
+        remaining--;
+        setCooldownRemaining(remaining);
+        if (remaining <= 0) {
+          clearInterval(timer);
+          setCooldownRemaining(0);
+        }
+      }, 1000);
 
-      toast.success(
-        "Verification email sent successfully! Please check your inbox and spam folder.",
-        { duration: 6000 }
-      );
-
-      // Set cooldown
-      setCooldownTime(60); // 60 seconds cooldown
-      setShowPasswordInput(false);
-      setPassword("");
       onSuccess?.();
 
     } catch (error: any) {
-      console.error("Resend verification error:", error.code);
-      
-      const errorMessages: Record<string, string> = {
-        'auth/invalid-credential': 'Invalid email or password.',
-        'auth/user-not-found': 'No account found with this email.',
-        'auth/wrong-password': 'Incorrect password.',
-        'auth/too-many-requests': 'Too many attempts. Please try again in a few minutes.',
-        'auth/network-request-failed': 'Network error. Please check your connection.',
-        'auth/user-disabled': 'This account has been disabled.',
-      };
-      
-      toast.error(errorMessages[error.code] || "Failed to resend verification email.");
+      console.error('Resend verification error:', error);
+      toast.error(error.message || 'Failed to resend verification email');
     } finally {
       setIsResending(false);
     }
   };
 
+  const isDisabled = isResending || !canResend();
+  const buttonText = isResending 
+    ? "Sending..." 
+    : cooldownRemaining > 0 
+      ? `Resend (${cooldownRemaining}s)` 
+      : "Resend Verification Email";
+
   return (
-    <div className={`space-y-3 ${className}`}>
-      {showPasswordInput && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Enter your password to continue:</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Your account password"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleResend();
-              }
-            }}
-          />
-        </div>
+    <Button
+      onClick={handleResend}
+      disabled={isDisabled}
+      variant={variant}
+      size={size}
+      className={className}
+    >
+      {isResending ? (
+        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+      ) : (
+        <Mail className="h-4 w-4 mr-2" />
       )}
-      
-      <Button
-        type="button"
-        onClick={handleResend}
-        disabled={isResending || (cooldownTime > 0)}
-        className="w-full"
-        variant="outline"
-      >
-        {isResending ? (
-          <>
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-            Sending Email...
-          </>
-        ) : cooldownTime > 0 ? (
-          <>
-            <Clock className="w-4 h-4 mr-2" />
-            Wait {cooldownTime}s
-          </>
-        ) : (
-          <>
-            <Mail className="w-4 h-4 mr-2" />
-            Resend Verification Email
-          </>
-        )}
-      </Button>
-    </div>
+      {buttonText}
+    </Button>
   );
 }

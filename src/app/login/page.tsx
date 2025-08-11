@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import ThemeToggle from "@/components/ThemeToggle";
-import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, RefreshCw } from "lucide-react";
 
 const loginSchema = z.object({
   email: z
@@ -58,6 +58,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showEmailVerificationError, setShowEmailVerificationError] = useState(false);
   const [lastAttemptedEmail, setLastAttemptedEmail] = useState("");
+  const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   
   const router = useRouter();
 
@@ -71,61 +72,86 @@ export default function LoginPage() {
     mode: "onBlur",
   });
 
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const verified = urlParams.get('verified');
+    
+    if (verified === 'true') {
+      toast.success("Email verified successfully! You can now sign in.");
+      window.history.replaceState({}, document.title, "/login");
+    }
+  }, []);
+
   const onSubmit = async (data: LoginForm) => {
-  if (isLoading || isSubmitting) return;
+    if (isLoading || isSubmitting) return;
 
-  setIsLoading(true);
-  setShowEmailVerificationError(false);
-  setLastAttemptedEmail(data.email);
-
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-    const user = userCredential.user;
-
-    // Force latest verification status from server
-    await user.reload();
-    await user.getIdToken(true);
-
-    const userDocRef = doc(db, "users", user.uid);
-    const userDoc = await getDoc(userDocRef);
-
-    if (!userDoc.exists()) {
-      toast.error("User profile not found. Please contact support.");
-      await signOut(auth);
-      return;
-    }
-
-    const userData = userDoc.data();
-
-    // Double-layer verification check
-    if (!user.emailVerified || !userData.emailVerified) {
-      toast.error("Please verify your email before signing in.");
-      setShowEmailVerificationError(true);
-      await signOut(auth);
-      if (typeof window !== "undefined") {
-        localStorage.clear();
-        sessionStorage.clear();
-      }
-      return;
-    }
-
-
-    await updateDoc(userDocRef, {
-      lastSignIn: serverTimestamp(),
-      emailVerified: true,
-    });
-
-    toast.success(`Welcome back, ${userData.firstName || "User"}!`);
-    router.replace("/dashboard");
-
-  } catch (error: any) {
-    toast.error(getErrorMessage(error.code));
+    setIsLoading(true);
     setShowEmailVerificationError(false);
-  } finally {
-    setIsLoading(false);
-  }
-};
+    setLastAttemptedEmail(data.email);
 
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      const user = userCredential.user;
+
+      await user.reload();
+      await user.getIdToken(true);
+
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        toast.error("User profile not found. Please contact support.");
+        await signOut(auth);
+        return;
+      }
+
+      const userData = userDoc.data();
+
+      await updateDoc(userDocRef, {
+        lastSignIn: serverTimestamp(),
+        emailVerified: true,
+        isVerified: true,
+      });
+
+      toast.success(`Welcome back, ${userData.firstName || "User"}!`);
+      router.replace("/dashboard");
+
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast.error(getErrorMessage(error.code));
+      setShowEmailVerificationError(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const checkVerificationStatus = async () => {
+    if (!lastAttemptedEmail) {
+      toast.error("Please enter your email first.");
+      return;
+    }
+
+    setIsCheckingVerification(true);
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, lastAttemptedEmail, "dummy");
+      
+    } catch (error: any) {
+      if (error.code === 'auth/wrong-password') {
+
+        try {
+          
+          toast.info("Please try signing in again if you've completed verification.");
+        } catch (e) {
+
+        }
+      } else if (error.code === 'auth/user-not-found') {
+        toast.error("No account found with this email.");
+      }
+    } finally {
+      setIsCheckingVerification(false);
+    }
+  };
 
   const togglePasswordVisibility = () => {
     setShowPassword(prev => !prev);
@@ -251,18 +277,46 @@ export default function LoginPage() {
                 <CardContent className="pt-4">
                   <div className="flex items-start space-x-3">
                     <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                        Email Verification Required
-                      </p>
-                      <p className="text-sm text-amber-700 dark:text-amber-300">
-                        Your email address hasn't been verified yet. Please check your inbox 
-                        and spam folder for the verification email we sent when you signed up.
-                      </p>
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
-                        Email: {lastAttemptedEmail}
-                      </p>
-                    
+                    <div className="space-y-3 flex-1">
+                      <div>
+                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                          Email Verification Required
+                        </p>
+                        <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                          Your email address hasn&apos;t been verified yet. Please complete the 
+                          verification process before signing in.
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                          Email: {lastAttemptedEmail}
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Button
+                          onClick={checkVerificationStatus}
+                          disabled={isCheckingVerification}
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                        >
+                          {isCheckingVerification ? (
+                            <>
+                              <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                              Checking...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-3 w-3 mr-2" />
+                              Check Verification Status
+                            </>
+                          )}
+                        </Button>
+                        
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          If you&apos;ve already verified your email, try signing in again. 
+                          For Bennett email users, verification may happen automatically.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

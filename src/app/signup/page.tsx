@@ -6,10 +6,8 @@ import { useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import {
   createUserWithEmailAndPassword,
-  sendEmailVerification,
   updateProfile,
   signOut,
-  ActionCodeSettings,
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
@@ -31,7 +29,14 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
-import { Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle, Mail } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  AlertCircle,
+  CheckCircle,
+  Mail,
+} from "lucide-react";
 import { toast } from "sonner";
 
 const signupSchema = z
@@ -60,7 +65,10 @@ const signupSchema = z
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")
-      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain at least one uppercase letter, one lowercase letter, and one number"),
+      .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        "Password must contain at least one uppercase letter, one lowercase letter, and one number",
+      ),
     confirmPassword: z.string(),
     agreeToTerms: z.literal(true, {
       errorMap: () => ({
@@ -77,16 +85,21 @@ type SignupForm = z.infer<typeof signupSchema>;
 
 const getErrorMessage = (errorCode: string): string => {
   const errorMessages: Record<string, string> = {
-    'auth/email-already-in-use': 'This email is already registered. Please sign in instead.',
-    'auth/invalid-email': 'Please enter a valid email address.',
-    'auth/operation-not-allowed': 'Email/password accounts are not enabled. Please contact support.',
-    'auth/weak-password': 'Password is too weak. Please choose a stronger password.',
-    'auth/network-request-failed': 'Network error. Please check your internet connection.',
-    'auth/too-many-requests': 'Too many requests. Please try again in a few minutes.',
-    'auth/internal-error': 'An internal error occurred. Please try again.',
+    "auth/email-already-in-use":
+      "This email is already registered. Please sign in instead.",
+    "auth/invalid-email": "Please enter a valid email address.",
+    "auth/operation-not-allowed":
+      "Email/password accounts are not enabled. Please contact support.",
+    "auth/weak-password":
+      "Password is too weak. Please choose a stronger password.",
+    "auth/network-request-failed":
+      "Network error. Please check your internet connection.",
+    "auth/too-many-requests":
+      "Too many requests. Please try again in a few minutes.",
+    "auth/internal-error": "An internal error occurred. Please try again.",
   };
-  
-  return errorMessages[errorCode] || 'Registration failed. Please try again.';
+
+  return errorMessages[errorCode] || "Registration failed. Please try again.";
 };
 
 export default function SignupPage() {
@@ -112,73 +125,103 @@ export default function SignupPage() {
 
   const agreeToTerms = watch("agreeToTerms");
 
-// inside onSubmit in SignupPage
-const onSubmit = async (data: SignupForm) => {
-  if (isLoading || isSubmitting) return;
-  
-  setIsLoading(true);
+  const onSubmit = async (data: SignupForm) => {
+    if (isLoading || isSubmitting) return;
 
-  try {
-    // Create account
-    const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-    const user = userCredential.user;
+    setIsLoading(true);
 
-    // Update display name
-    await updateProfile(user, { displayName: `${data.firstName} ${data.lastName}` });
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        data.email,
+        data.password,
+      );
 
-    // Send verification email - point to verify page
-    const actionCodeSettings: ActionCodeSettings = {
-      url: `${window.location.origin}/verify-email`, 
-      handleCodeInApp: false,
-    };
-    await sendEmailVerification(user, actionCodeSettings);
+      const user = userCredential.user;
 
-    // Create Firestore document
-    await setDoc(doc(db, "users", user.uid), {
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email.toLowerCase(),
-      phone: data.phone,
-      displayName: `${data.firstName} ${data.lastName}`,
-      emailVerified: false,
-      verificationEmailSent: true,
-      verificationEmailSentAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+      await updateProfile(user, {
+        displayName: `${data.firstName} ${data.lastName}`,
+      });
 
-   
-    await signOut(auth);
-    
-    if (typeof window !== "undefined") {
-      localStorage.clear();
-      sessionStorage.clear();
+      const verificationToken = crypto.randomUUID();
+
+      await setDoc(doc(db, "pendingVerifications", user.uid), {
+        token: verificationToken,
+        userId: user.uid,
+        email: data.email.toLowerCase(),
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        tempVerificationCode: crypto.randomUUID(),
+        createdAt: serverTimestamp(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+
+      await setDoc(doc(db, "users", user.uid), {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email.toLowerCase(),
+        phone: data.phone,
+        displayName: `${data.firstName} ${data.lastName}`,
+        isVerified: false,
+        emailVerified: false,
+        verificationPending: true,
+        createdAt: serverTimestamp(),
+      });
+
+      await signOut(auth);
+
+      const verificationUrl = `${window.location.origin}/verify-email?token=${verificationToken}&uid=${user.uid}`;
+
+      try {
+        const response = await fetch("/api/send-verification-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: data.email,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            verificationUrl: verificationUrl,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            result.message || "Failed to send verification email",
+          );
+        }
+
+        console.log("Verification email sent successfully:", result);
+      } catch (emailError: any) {
+        console.error("Email sending failed:", emailError);
+        toast.error(
+          "Account created but failed to send verification email. Please contact support.",
+        );
+        return;
+      }
+
+      setSignupSuccess(true);
+      setUserEmail(data.email);
+
+      toast.success("Account created! Check your email for verification link.");
+
+      reset();
+    } catch (err: any) {
+      console.error("Signup error:", err.code);
+      toast.error(getErrorMessage(err.code));
+    } finally {
+      setIsLoading(false);
     }
-    await new Promise(res => setTimeout(res, 500));
-
-    setUserEmail(data.email);
-    setSignupSuccess(true);
-
-    toast.success("Account created! Please check your email and verify before logging in.");
-    reset();
-
-    setTimeout(() => router.push("/login"), 2000);
-
-  } catch (err: any) {
-    toast.error(getErrorMessage(err.code));
-    console.error(err);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  };
 
   const togglePasswordVisibility = () => {
-    setShowPassword(prev => !prev);
+    setShowPassword((prev) => !prev);
   };
 
   const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(prev => !prev);
+    setShowConfirmPassword((prev) => !prev);
   };
 
   const handleTermsChange = (checked: boolean | "indeterminate") => {
@@ -187,54 +230,92 @@ const onSubmit = async (data: SignupForm) => {
     }
   };
 
-  // Success state UI
   if (signupSuccess) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md border shadow-lg bg-card/80 backdrop-blur">
+        <Card className="w-full max-w-lg border shadow-lg bg-card/80 backdrop-blur">
           <CardHeader className="text-center space-y-4">
             <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
               <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>
             <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-300">
-              Account Created!
+              Account Created Successfully!
             </CardTitle>
             <CardDescription className="text-center">
-              Welcome to Raahi! Your account has been created successfully.
+              Please check your Bennett email to verify your account.
             </CardDescription>
           </CardHeader>
-          
-          <CardContent className="space-y-4 text-center">
+
+          <CardContent className="space-y-6">
+            {/* Email Sent Confirmation */}
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <Mail className="w-6 h-6 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
-              <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                Verification Email Sent
+              <div className="flex items-center gap-2 mb-2">
+                <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <p className="font-medium text-blue-800 dark:text-blue-200">
+                  Verification Email Sent
+                </p>
+              </div>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                Check your inbox at:
               </p>
-              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                We've sent a verification link to:
-              </p>
-              <p className="text-sm font-mono bg-blue-100 dark:bg-blue-900 p-2 rounded mt-2 text-blue-900 dark:text-blue-100">
+              <p className="text-sm font-mono bg-blue-100 dark:bg-blue-900 p-2 rounded text-blue-900 dark:text-blue-100">
                 {userEmail}
               </p>
             </div>
-            
-            <div className="text-left space-y-2 text-sm text-muted-foreground">
-              <p className="font-medium">Next steps:</p>
-              <ol className="list-decimal list-inside space-y-1 ml-2">
-                <li>Check your email inbox</li>
-                <li>Look in spam/junk folder if not found</li>
-                <li>Click the verification link</li>
-                <li>Return to sign in</li>
+
+            {/* Clear Instructions */}
+            <div className="space-y-3">
+              <p className="font-medium text-sm">Next Steps:</p>
+              <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground pl-2">
+                <li>Open your Bennett email inbox</li>
+                <li>Find the email from Raahi (check spam folder if needed)</li>
+                <li>Click the &quot;Verify Email&quot; link in the email</li>
+                <li>Enter your password on the verification page</li>
+                <li>Complete the final verification process</li>
+                <li>Return here and sign in with your credentials</li>
               </ol>
             </div>
-            
-            <Button 
-              onClick={() => router.push("/login")}
-              className="w-full"
-              variant="outline"
-            >
-              Go to Sign In
-            </Button>
+
+            {/* Security Note */}
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+              <p className="text-sm text-green-800 dark:text-green-200">
+                <strong>Secure Verification:</strong> The verification link has
+                been sent directly to your Bennett email address. This ensures
+                only you can verify your account, even if your university email
+                system automatically scans links.
+              </p>
+            </div>
+
+            {/* University Email Info */}
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                <strong>Bennett Email Users:</strong> Don&apos;t worry if the
+                verification happens automatically when you receive the email.
+                Our two-step process ensures your account remains secure while
+                working with university email security systems.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              <Button
+                onClick={() => router.push("/login")}
+                className="w-full"
+                variant="default"
+              >
+                Go to Login Page
+              </Button>
+              <Button
+                onClick={() => {
+                  setSignupSuccess(false);
+                  setUserEmail("");
+                }}
+                variant="outline"
+                className="w-full"
+              >
+                Create Another Account
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -276,13 +357,14 @@ const onSubmit = async (data: SignupForm) => {
 
           <CardContent className="space-y-4">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* First Name & Last Name */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input 
+                  <Input
                     id="firstName"
-                    placeholder="John" 
-                    {...register("firstName")} 
+                    placeholder="John"
+                    {...register("firstName")}
                     disabled={isLoading}
                     autoComplete="given-name"
                   />
@@ -295,10 +377,10 @@ const onSubmit = async (data: SignupForm) => {
                 </div>
                 <div>
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input 
+                  <Input
                     id="lastName"
-                    placeholder="Doe" 
-                    {...register("lastName")} 
+                    placeholder="Doe"
+                    {...register("lastName")}
                     disabled={isLoading}
                     autoComplete="family-name"
                   />
@@ -311,6 +393,7 @@ const onSubmit = async (data: SignupForm) => {
                 </div>
               </div>
 
+              {/* Email */}
               <div>
                 <Label htmlFor="email">Bennett Email</Label>
                 <Input
@@ -329,13 +412,14 @@ const onSubmit = async (data: SignupForm) => {
                 )}
               </div>
 
+              {/* Phone */}
               <div>
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input 
+                <Input
                   id="phone"
                   type="tel"
-                  placeholder="+91 98765 43210" 
-                  {...register("phone")} 
+                  placeholder="+91 98765 43210"
+                  {...register("phone")}
                   disabled={isLoading}
                   autoComplete="tel"
                 />
@@ -347,6 +431,7 @@ const onSubmit = async (data: SignupForm) => {
                 )}
               </div>
 
+              {/* Password */}
               <div>
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
@@ -381,6 +466,7 @@ const onSubmit = async (data: SignupForm) => {
                 )}
               </div>
 
+              {/* Confirm Password */}
               <div>
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <div className="relative">
@@ -415,6 +501,7 @@ const onSubmit = async (data: SignupForm) => {
                 )}
               </div>
 
+              {/* Terms Checkbox */}
               <div className="flex items-start space-x-2">
                 <Checkbox
                   id="agreeToTerms"
@@ -423,10 +510,13 @@ const onSubmit = async (data: SignupForm) => {
                   disabled={isLoading}
                   className="mt-1"
                 />
-                <Label htmlFor="agreeToTerms" className="text-sm leading-relaxed">
-                  I agree to Raahi's{" "}
-                  <Link 
-                    href="/terms-and-conditions" 
+                <Label
+                  htmlFor="agreeToTerms"
+                  className="text-sm leading-relaxed"
+                >
+                  I agree to Raahi&apos;s{" "}
+                  <Link
+                    href="/terms-and-conditions"
                     className="text-primary hover:underline"
                     target="_blank"
                   >
@@ -449,9 +539,10 @@ const onSubmit = async (data: SignupForm) => {
                 </p>
               )}
 
-              <Button 
-                type="submit" 
-                disabled={isLoading || isSubmitting} 
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                disabled={isLoading || isSubmitting}
                 className="w-full"
                 size="lg"
               >
@@ -470,8 +561,8 @@ const onSubmit = async (data: SignupForm) => {
           <CardFooter className="text-center">
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link 
-                href="/login" 
+              <Link
+                href="/login"
                 className="text-primary font-medium hover:underline"
               >
                 Sign in
@@ -479,11 +570,9 @@ const onSubmit = async (data: SignupForm) => {
             </p>
           </CardFooter>
         </Card>
-        
+
         <div className="mt-4 text-center text-xs text-muted-foreground">
-          <p>
-            Only Bennett University official email addresses are accepted
-          </p>
+          <p>Only Bennett University official email addresses are accepted</p>
         </div>
       </div>
     </div>

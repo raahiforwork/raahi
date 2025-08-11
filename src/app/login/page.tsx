@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,51 +24,62 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import ThemeToggle from "@/components/ThemeToggle";
-import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle } from "lucide-react";
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email"),
+  email: z
+    .string()
+    .email("Please enter a valid email")
+    .refine((val) => val.split("@")[1]?.toLowerCase() === "bennett.edu.in", {
+      message: "Please use your Bennett official email ID",
+    }),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-
 const getErrorMessage = (errorCode: string): string => {
   const errorMessages: Record<string, string> = {
-    'auth/user-not-found': 'No user found with this email.',
-    'auth/wrong-password': 'Incorrect password.',
+    'auth/user-not-found': 'No account found with this email address.',
+    'auth/wrong-password': 'Incorrect password. Please try again.',
     'auth/invalid-email': 'Please enter a valid email address.',
-    'auth/user-disabled': 'This account has been disabled.',
-    'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
-    'auth/network-request-failed': 'Network error. Please check your connection.',
-    'auth/invalid-credential': 'Invalid email or password.',
+    'auth/user-disabled': 'This account has been disabled. Contact support.',
+    'auth/too-many-requests': 'Too many failed attempts. Please try again in a few minutes.',
+    'auth/network-request-failed': 'Network error. Please check your internet connection.',
+    'auth/invalid-credential': 'Invalid email or password. Please check your credentials.',
+    'auth/account-exists-with-different-credential': 'An account already exists with this email.',
   };
   
-  return errorMessages[errorCode] || 'Login failed. Please create the account first.';
+  return errorMessages[errorCode] || 'Login failed. Please check your credentials and try again.';
 };
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showEmailVerificationError, setShowEmailVerificationError] = useState(false);
+  const [lastAttemptedEmail, setLastAttemptedEmail] = useState("");
+  
   const router = useRouter();
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
+    watch,
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    mode: "onBlur", 
+    mode: "onBlur",
   });
 
   const onSubmit = async (data: LoginForm) => {
-  
     if (isLoading || isSubmitting) return;
     
     setIsLoading(true);
+    setShowEmailVerificationError(false); // Reset verification error state
+    setLastAttemptedEmail(data.email); // Store email for potential resend
     
     try {
+      // Attempt to sign in
       const userCredential = await signInWithEmailAndPassword(
         auth,
         data.email,
@@ -77,35 +88,75 @@ export default function LoginPage() {
 
       const user = userCredential.user;
 
+      // Force refresh user data to get latest verification status
+      await user.reload();
+
+      // Check if email is verified
       if (!user.emailVerified) {
-        toast.error("Please verify your email before signing in.");
+        console.log("Email not verified for user:", user.uid);
+        
+        // Show specific error for unverified email
+        toast.error(
+          "Please verify your email before signing in. Check your inbox and spam folder.",
+          { duration: 7000 }
+        );
+        
+        // Show resend option
+        setShowEmailVerificationError(true);
+        
+        // Sign out the user immediately
         await signOut(auth);
         return;
       }
 
-
+      // Check if user document exists in Firestore
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
-        toast.error("User profile not found. Please contact support.");
+        console.log("User document not found for:", user.uid);
+        toast.error("User profile not found. Please contact support or try signing up again.");
         await signOut(auth);
         return;
       }
 
-      toast.success("Signed in successfully!");
-     
+      const userData = userDoc.data();
+
+      
+      await updateDoc(userDocRef, {
+        lastSignIn: serverTimestamp(),
+        emailVerified: true, 
+      });
+
+      console.log("User signed in successfully:", user.uid);
+      toast.success(`Welcome back, ${userData.firstName}!`);
+      
+      
+      setShowEmailVerificationError(false);
+      
+ 
       router.replace("/dashboard");
       
     } catch (error: any) {
-      console.error("Login error:", error.code);
-      toast.error(getErrorMessage(error.code));
+      console.error("Login error:", error.code, error.message);
+      
+      // Handle specific error cases
+      if (error.code === 'auth/invalid-credential') {
+        toast.error("Invalid email or password. Please check your credentials.");
+      } else if (error.code === 'auth/too-many-requests') {
+        toast.error("Too many failed login attempts. Please wait a few minutes before trying again.");
+      } else {
+        toast.error(getErrorMessage(error.code));
+      }
+      
+      // Hide resend option for non-verification errors
+      setShowEmailVerificationError(false);
+      
     } finally {
       setIsLoading(false);
     }
   };
 
-  
   const togglePasswordVisibility = () => {
     setShowPassword(prev => !prev);
   };
@@ -143,13 +194,13 @@ export default function LoginPage() {
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Bennett Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
-                    placeholder="Enter your email"
+                    placeholder="your.name@bennett.edu.in"
                     className="pl-10"
                     {...register("email")}
                     disabled={isLoading}
@@ -157,7 +208,8 @@ export default function LoginPage() {
                   />
                 </div>
                 {errors.email && (
-                  <p className="text-sm text-destructive">
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
                     {errors.email.message}
                   </p>
                 )}
@@ -200,7 +252,8 @@ export default function LoginPage() {
                   </Button>
                 </div>
                 {errors.password && (
-                  <p className="text-sm text-destructive">
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
                     {errors.password.message}
                   </p>
                 )}
@@ -212,9 +265,39 @@ export default function LoginPage() {
                 size="lg"
                 disabled={isLoading || isSubmitting}
               >
-                {isLoading ? "Signing in..." : "Sign In"}
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Signing in...
+                  </>
+                ) : (
+                  "Sign In"
+                )}
               </Button>
             </form>
+
+            {showEmailVerificationError && (
+              <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800">
+                <CardContent className="pt-4">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                        Email Verification Required
+                      </p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        Your email address hasn't been verified yet. Please check your inbox 
+                        and spam folder for the verification email we sent when you signed up.
+                      </p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        Email: {lastAttemptedEmail}
+                      </p>
+                    
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </CardContent>
 
           <CardFooter className="text-center">
@@ -224,7 +307,7 @@ export default function LoginPage() {
                 href="/signup"
                 className="text-primary font-medium hover:underline"
               >
-                Sign up
+                Sign up with Bennett email
               </Link>
             </p>
           </CardFooter>

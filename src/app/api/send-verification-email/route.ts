@@ -34,13 +34,13 @@ export async function POST(request: NextRequest) {
         <p><strong>Thanks for signing up with your Bennett email.</strong></p>
         <p>To complete your registration, please click the link below:</p>
         <p><a href="${verificationUrl}" style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Verify Email Address</a></p>
-        <p><small>This link expires in 24 hours. If you didn't create this account, please ignore this email.</small></p>
+        <p><small>This link expires in 24 hours.</small></p>
         <p>Best regards,<br>The Raahi Team</p>
       </div>
     `;
 
     const info = await transporter.sendMail({
-      from: `"Raahi Test - Gmail" <${process.env.GMAIL_USER}>`,
+      from: `"Raahi - Gmail" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: "Verify Your Raahi Account",
       html: emailTemplate

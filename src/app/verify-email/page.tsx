@@ -77,7 +77,7 @@ export default function VerifyEmailPage() {
     if (step === "sent" && tokenData) {
       const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user && user.emailVerified) {
-          console.log("✅ Email verified detected, updating Firestore...");
+          console.log("Email verified detected, updating Firestore...");
           
           try {
             await updateDoc(doc(db, "users", tokenData.userId), {
@@ -89,7 +89,7 @@ export default function VerifyEmailPage() {
 
             await deleteDoc(doc(db, "pendingVerifications", tokenData.userId));
 
-            console.log("✅ User verification status updated successfully");
+            console.log("User verification status updated successfully");
             setStep("completed");
             toast.success("Email verification completed successfully!");
 

@@ -112,97 +112,66 @@ export default function SignupPage() {
 
   const agreeToTerms = watch("agreeToTerms");
 
-  const onSubmit = async (data: SignupForm) => {
-    if (isLoading || isSubmitting) return;
-    
-    setIsLoading(true);
-    
-    try {
-      console.log("Starting signup process for:", data.email);
-      
-      // Create user with email and password
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        data.email,
-        data.password,
-      );
-
-      const user = userCredential.user;
-      console.log("User created with UID:", user.uid);
-
-      
-      await updateProfile(user, {
-        displayName: `${data.firstName} ${data.lastName}`,
-      });
-
-      
-      const actionCodeSettings: ActionCodeSettings = {
-        url: `${window.location.origin}/login?verified=true`,
-        handleCodeInApp: false,
-      };
-
-      
-      await sendEmailVerification(user, actionCodeSettings);
-      console.log("Verification email sent to:", data.email);
-
-      
-      await setDoc(doc(db, "users", user.uid), {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email.toLowerCase(),
-        phone: data.phone,
-        displayName: `${data.firstName} ${data.lastName}`,
-        emailVerified: false,
-        isVerified: false,
-        verificationEmailSent: true,
-        verificationEmailSentAt: serverTimestamp(),
-        verificationEmailResendCount: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      console.log("User document created in Firestore");
-
-      
-      await signOut(auth);
-      console.log("User signed out after registration");
-
+// inside onSubmit in SignupPage
+const onSubmit = async (data: SignupForm) => {
+  if (isLoading || isSubmitting) return;
   
-      setUserEmail(data.email);
-      setSignupSuccess(true);
+  setIsLoading(true);
 
-      toast.success(
-        "Account created successfully! Please check your email (including spam folder) and verify your account before signing in.",
-        { duration: 8000 }
-      );
-      
-      
-      reset();
+  try {
+    // Create account
+    const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+    const user = userCredential.user;
 
+    // Update display name
+    await updateProfile(user, { displayName: `${data.firstName} ${data.lastName}` });
+
+    // Send verification email - point to verify page
+    const actionCodeSettings: ActionCodeSettings = {
+      url: `${window.location.origin}/verify-email`, 
+      handleCodeInApp: false,
+    };
+    await sendEmailVerification(user, actionCodeSettings);
+
+    // Create Firestore document
+    await setDoc(doc(db, "users", user.uid), {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email.toLowerCase(),
+      phone: data.phone,
+      displayName: `${data.firstName} ${data.lastName}`,
+      emailVerified: false,
+      verificationEmailSent: true,
+      verificationEmailSentAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+   
+    await signOut(auth);
     
-      setTimeout(() => {
-        router.push("/login?signup=success");
-      }, 3000);
-
-    } catch (err: any) {
-      console.error("Signup error:", err.code, err.message);
-      
-      
-      if (err.code === 'auth/email-already-in-use') {
-        toast.error(
-          "This email is already registered. Please sign in instead or use a different email.",
-          { duration: 6000 }
-        );
-      } else {
-        toast.error(getErrorMessage(err.code));
-      }
-      
-      
-      setSignupSuccess(false);
-    } finally {
-      setIsLoading(false);
+    if (typeof window !== "undefined") {
+      localStorage.clear();
+      sessionStorage.clear();
     }
-  };
+    await new Promise(res => setTimeout(res, 500));
+
+    setUserEmail(data.email);
+    setSignupSuccess(true);
+
+    toast.success("Account created! Please check your email and verify before logging in.");
+    reset();
+
+    setTimeout(() => router.push("/login"), 2000);
+
+  } catch (err: any) {
+    toast.error(getErrorMessage(err.code));
+    console.error(err);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const togglePasswordVisibility = () => {
     setShowPassword(prev => !prev);

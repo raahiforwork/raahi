@@ -72,90 +72,60 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginForm) => {
-    if (isLoading || isSubmitting) return;
-    
-    setIsLoading(true);
-    setShowEmailVerificationError(false); // Reset verification error state
-    setLastAttemptedEmail(data.email); // Store email for potential resend
-    
-    try {
-      // Attempt to sign in
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        data.email,
-        data.password,
-      );
+  if (isLoading || isSubmitting) return;
 
-      const user = userCredential.user;
+  setIsLoading(true);
+  setShowEmailVerificationError(false);
+  setLastAttemptedEmail(data.email);
 
-      // Force refresh user data to get latest verification status
-      await user.reload();
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+    const user = userCredential.user;
 
-      // Check if email is verified
-      if (!user.emailVerified) {
-        console.log("Email not verified for user:", user.uid);
-        
-        // Show specific error for unverified email
-        toast.error(
-          "Please verify your email before signing in. Check your inbox and spam folder.",
-          { duration: 7000 }
-        );
-        
-        // Show resend option
-        setShowEmailVerificationError(true);
-        
-        // Sign out the user immediately
-        await signOut(auth);
-        return;
-      }
+    // Force latest verification status from server
+    await user.reload();
+    await user.getIdToken(true);
 
-      // Check if user document exists in Firestore
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
+    const userDocRef = doc(db, "users", user.uid);
+    const userDoc = await getDoc(userDocRef);
 
-      if (!userDoc.exists()) {
-        console.log("User document not found for:", user.uid);
-        toast.error("User profile not found. Please contact support or try signing up again.");
-        await signOut(auth);
-        return;
-      }
-
-      const userData = userDoc.data();
-
-      
-      await updateDoc(userDocRef, {
-        lastSignIn: serverTimestamp(),
-        emailVerified: true, 
-      });
-
-      console.log("User signed in successfully:", user.uid);
-      toast.success(`Welcome back, ${userData.firstName}!`);
-      
-      
-      setShowEmailVerificationError(false);
-      
- 
-      router.replace("/dashboard");
-      
-    } catch (error: any) {
-      console.error("Login error:", error.code, error.message);
-      
-      // Handle specific error cases
-      if (error.code === 'auth/invalid-credential') {
-        toast.error("Invalid email or password. Please check your credentials.");
-      } else if (error.code === 'auth/too-many-requests') {
-        toast.error("Too many failed login attempts. Please wait a few minutes before trying again.");
-      } else {
-        toast.error(getErrorMessage(error.code));
-      }
-      
-      // Hide resend option for non-verification errors
-      setShowEmailVerificationError(false);
-      
-    } finally {
-      setIsLoading(false);
+    if (!userDoc.exists()) {
+      toast.error("User profile not found. Please contact support.");
+      await signOut(auth);
+      return;
     }
-  };
+
+    const userData = userDoc.data();
+
+    // Double-layer verification check
+    if (!user.emailVerified || !userData.emailVerified) {
+      toast.error("Please verify your email before signing in.");
+      setShowEmailVerificationError(true);
+      await signOut(auth);
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      return;
+    }
+
+
+    await updateDoc(userDocRef, {
+      lastSignIn: serverTimestamp(),
+      emailVerified: true,
+    });
+
+    toast.success(`Welcome back, ${userData.firstName || "User"}!`);
+    router.replace("/dashboard");
+
+  } catch (error: any) {
+    toast.error(getErrorMessage(error.code));
+    setShowEmailVerificationError(false);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const togglePasswordVisibility = () => {
     setShowPassword(prev => !prev);

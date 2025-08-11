@@ -6,10 +6,7 @@ import Head from "next/head";
 import { auth, db } from "@/lib/firebase";
 import {
   signInWithEmailAndPassword,
-  sendEmailVerification,
   signOut,
-  ActionCodeSettings,
-  onAuthStateChanged,
 } from "firebase/auth";
 import {
   doc,
@@ -29,13 +26,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { CheckCircle, Mail, Clock, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { CheckCircle, Clock, AlertCircle, Eye, EyeOff } from "lucide-react";
 
 export default function VerifyEmailPage() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [tokenData, setTokenData] = useState<any>(null);
   const [step, setStep] = useState<
-    "validating" | "ready" | "password_required" | "sent" | "expired" | "invalid" | "completed"
+    "validating" | "ready" | "password_required" | "expired" | "invalid" | "completed"
   >("validating");
   const [countdown, setCountdown] = useState(5);
   const [password, setPassword] = useState("");
@@ -65,44 +62,15 @@ export default function VerifyEmailPage() {
   }, [searchParams, token, uid]);
 
   useEffect(() => {
-    if (step === "ready" && countdown > 0) {
+    if (step === "completed" && countdown > 0) {
       const timer = setTimeout(() => {
         setCountdown((prev) => prev - 1);
       }, 1000);
       return () => clearTimeout(timer);
+    } else if (step === "completed" && countdown === 0) {
+      router.push("/login?verified=true");
     }
-  }, [step, countdown]);
-
-  useEffect(() => {
-    if (step === "sent" && tokenData) {
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user && user.emailVerified) {
-          console.log("Email verified detected, updating Firestore...");
-          
-          try {
-            await updateDoc(doc(db, "users", tokenData.userId), {
-              isVerified: true,
-              emailVerified: true,
-              emailVerifiedAt: serverTimestamp(),
-              verificationPending: false
-            });
-
-            await deleteDoc(doc(db, "pendingVerifications", tokenData.userId));
-
-            console.log("User verification status updated successfully");
-            setStep("completed");
-            toast.success("Email verification completed successfully!");
-
-          } catch (error) {
-            console.error("Error updating verification status:", error);
-            toast.error("Verification detected but failed to update profile. Please contact support.");
-          }
-        }
-      });
-
-      return () => unsubscribe();
-    }
-  }, [step, tokenData]);
+  }, [step, countdown, router]);
 
   const verifyCustomToken = async (token: string, uid: string) => {
     try {
@@ -146,19 +114,20 @@ export default function VerifyEmailPage() {
         password
       );
 
-      const user = userCredential.user;
-
-      const actionCodeSettings: ActionCodeSettings = {
-        url: `${window.location.origin}/complete-verification`,
-        handleCodeInApp: false,
-      };
-
-      await sendEmailVerification(user, actionCodeSettings);
+      await updateDoc(doc(db, "users", tokenData.userId), {
+        isVerified: true,
+        emailVerified: true,
+        emailVerifiedAt: serverTimestamp(),
+        verificationPending: false
+      });
 
       await deleteDoc(doc(db, "pendingVerifications", tokenData.userId));
 
-      setStep("sent");
-      toast.success("Verification email sent! Check your inbox.");
+      await signOut(auth);
+
+      console.log("User verification status updated successfully");
+      setStep("completed");
+      toast.success("Email verification completed successfully!");
 
     } catch (error: any) {
       console.error("Password verification error:", error);
@@ -207,40 +176,6 @@ export default function VerifyEmailPage() {
     } catch (error) {
       console.error("Resend email error:", error);
       toast.error("Failed to send new verification email. Please try again.");
-    }
-  };
-
-  const checkVerificationStatus = async () => {
-    if (!auth.currentUser) {
-      toast.error("Please complete the verification process first.");
-      return;
-    }
-
-    setIsVerifying(true);
-
-    try {
-      await auth.currentUser.reload();
-      
-      if (auth.currentUser.emailVerified) {
-        await updateDoc(doc(db, "users", tokenData.userId), {
-          isVerified: true,
-          emailVerified: true,
-          emailVerifiedAt: serverTimestamp(),
-          verificationPending: false
-        });
-
-        await deleteDoc(doc(db, "pendingVerifications", tokenData.userId));
-
-        setStep("completed");
-        toast.success("Email verification completed!");
-      } else {
-        toast.info("Email not yet verified. Please check your inbox and click the verification link.");
-      }
-    } catch (error) {
-      console.error("Error checking verification:", error);
-      toast.error("Failed to check verification status.");
-    } finally {
-      setIsVerifying(false);
     }
   };
 
@@ -371,7 +306,7 @@ export default function VerifyEmailPage() {
             <CardHeader>
               <CardTitle>Confirm Your Identity</CardTitle>
               <CardDescription>
-                Enter your password to proceed with email verification
+                Enter your password to verify your email address
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -414,9 +349,8 @@ export default function VerifyEmailPage() {
 
               <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Why we need this:</strong><br />
-                  To send you a verification email, we need to temporarily sign you in. 
-                  Your password is only used for this verification step.
+                  <strong>Quick Verification:</strong><br />
+                  Once you enter the correct password, your email will be immediately verified.
                 </p>
               </div>
 
@@ -425,69 +359,8 @@ export default function VerifyEmailPage() {
                 disabled={isVerifying || !password}
                 className="w-full"
               >
-                {isVerifying ? "Verifying..." : "Send Verification Email"}
+                {isVerifying ? "Verifying..." : "Verify Email"}
               </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </>
-    );
-  }
-
-  if (step === "sent") {
-    return (
-      <>
-        <Head>
-          <meta name="robots" content="noindex, nofollow" />
-          <title>Email Verification - Check Your Email</title>
-        </Head>
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <div className="flex items-center space-x-2">
-                <Mail className="h-6 w-6 text-green-600" />
-                <CardTitle>Verification Email Sent!</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p>
-                A Firebase verification email has been sent to:
-                <strong className="block mt-1">{tokenData?.email}</strong>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Check your inbox and click the verification link in the email to
-                complete the process. If you don&apos;t see it, check your spam folder.
-              </p>
-              <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-lg">
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                  <strong>Note:</strong> If you&apos;re using university email (Outlook), 
-                  the verification may happen automatically when you receive the email.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Button
-                  onClick={checkVerificationStatus}
-                  disabled={isVerifying}
-                  className="w-full"
-                >
-                  {isVerifying ? (
-                    <>
-                      <Clock className="h-4 w-4 mr-2 animate-spin" />
-                      Checking...
-                    </>
-                  ) : (
-                    "I've Clicked the Link - Check Status"
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handlePasswordSubmit}
-                  disabled={isVerifying}
-                  className="w-full"
-                >
-                  {isVerifying ? "Sending..." : "Resend Verification Email"}
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -516,16 +389,21 @@ export default function VerifyEmailPage() {
               </p>
               <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
                 <p className="text-sm text-green-800 dark:text-green-200">
-                  <strong>🎉 Welcome to Raahi!</strong><br />
-                  Your Bennett University email has been verified. You can now access all features of the rideshare platform.
+                  <strong>Welcome to your platform!</strong><br />
+                  Your email has been verified. You can now access all features.
                 </p>
               </div>
-              <Button
-                onClick={() => router.push("/login?verified=true")}
-                className="w-full"
-              >
-                Continue to Login
-              </Button>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Redirecting to login in {countdown} seconds...
+                </p>
+                <Button
+                  onClick={() => router.push("/login?verified=true")}
+                  className="w-full"
+                >
+                  Continue to Login
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

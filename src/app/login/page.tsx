@@ -165,37 +165,7 @@ export default function LoginPage() {
     }
   };
 
-  const resendVerificationEmail = async () => {
-    if (!lastAttemptedEmail) {
-      toast.error("Please enter your email first.");
-      return;
-    }
-
-    setIsCheckingVerification(true);
-
-    try {
-      const response = await fetch("/api/resend-verification-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: lastAttemptedEmail,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        toast.success("Verification email sent! Please check your inbox and spam folder.");
-      } else {
-        toast.error(result.message || "Failed to send verification email.");
-      }
-    } catch (error) {
-      console.error("Resend verification error:", error);
-      toast.error("Failed to resend verification email. Please try again.");
-    } finally {
-      setIsCheckingVerification(false);
-    }
-  };
+  
 
   const togglePasswordVisibility = () => {
     setShowPassword(prev => !prev);
@@ -352,25 +322,6 @@ export default function LoginPage() {
                               <>
                                 <RefreshCw className="h-3 w-3 mr-1" />
                                 Try Again
-                              </>
-                            )}
-                          </Button>
-                          
-                          <Button
-                            onClick={resendVerificationEmail}
-                            disabled={isCheckingVerification}
-                            variant="outline"
-                            size="sm"
-                          >
-                            {isCheckingVerification ? (
-                              <>
-                                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                                Sending...
-                              </>
-                            ) : (
-                              <>
-                                <Mail className="h-3 w-3 mr-1" />
-                                Resend Email
                               </>
                             )}
                           </Button>

@@ -79,6 +79,8 @@ import PastRides from "@/components/dashboard/PastRides";
 import { FaRupeeSign } from "react-icons/fa";
 import { UserProfile } from "@/components/dashboard/UserProfile";
 
+
+
 const nunito = Nunito({ subsets: ["latin"], weight: ["400", "700"] });
 
 type LatLng = {
@@ -542,6 +544,9 @@ function useUserRideHistory(userId: string | undefined) {
 }
 
 export default function ModernDashboard() {
+
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
   interface BeforeInstallPromptEvent extends Event {
     prompt(): Promise<void>;
     userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -1317,56 +1322,65 @@ export default function ModernDashboard() {
 
                   {/* Date Picker */}
                   <div className="w-full sm:w-auto sm:flex-1 sm:max-w-sm lg:flex-none lg:w-full lg:max-w-sm">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white rounded-xl hover:border-purple-500/50 transition-all duration-300 text-sm sm:text-base w-full"
-                        >
-                          <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400 mr-2" />
-                          {customDateRange
-                            ? customDateRange.start
-                            : "Pick date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-gray-800 border-gray-700 rounded-xl">
-                        <div className="p-3">
-                          <Calendar
-                            mode="single"
-                            selected={
-                              customDateRange
-                                ? new Date(customDateRange.start)
-                                : undefined
-                            }
-                            onSelect={(date: Date | undefined) => {
-                              if (!date) {
-                                setCustomDateRange(null);
-                                return;
-                              }
-                              const selectedDate = toYMD(date);
-                              setCustomDateRange({
-                                start: selectedDate,
-                                end: selectedDate,
-                              });
-                              setSelectedDate(undefined);
-                            }}
-                            className="rounded-md"
-                          />
-                          <div className="flex justify-end p-2 gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setCustomDateRange(null)}
-                            >
-                              Clear
-                            </Button>
-                            <Button size="sm" onClick={handleSearch}>
-                              Apply
-                            </Button>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                   <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+    <PopoverTrigger asChild>
+      <Button
+        variant="outline"
+        className="py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white rounded-xl hover:border-purple-500/50 transition-all duration-300 text-sm sm:text-base w-full"
+      >
+        <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400 mr-2" />
+        {customDateRange
+          ? customDateRange.start
+          : "Pick date"}
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent className="w-auto p-0 bg-gray-800 border-gray-700 rounded-xl">
+      <div className="p-3">
+        <Calendar
+          mode="single"
+          selected={
+            customDateRange
+              ? new Date(customDateRange.start)
+              : undefined
+          }
+          onSelect={(date: Date | undefined) => {
+            if (!date) {
+              setCustomDateRange(null);
+              return;
+            }
+            const selectedDate = toYMD(date);
+            setCustomDateRange({
+              start: selectedDate,
+              end: selectedDate,
+            });
+            setSelectedDate(undefined);
+          }}
+          className="rounded-md"
+        />
+        <div className="flex justify-end p-2 gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setCustomDateRange(null);
+              setIsCalendarOpen(false);
+            }}
+          >
+            Clear
+          </Button>
+          <Button 
+            size="sm" 
+            onClick={() => {
+              handleSearch();
+              setIsCalendarOpen(false);
+            }}
+          >
+            Apply
+          </Button>
+        </div>
+      </div>
+    </PopoverContent>
+  </Popover>
                   </div>
                 </div>
 

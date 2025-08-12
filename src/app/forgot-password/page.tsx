@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { sendPasswordResetEmail } from "firebase/auth";
@@ -34,6 +34,7 @@ type ForgotPasswordForm = z.infer<typeof forgotPasswordSchema>;
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [cooldown, setCooldown] = useState(0); 
   const router = useRouter();
 
   const {
@@ -45,11 +46,23 @@ export default function ForgotPasswordPage() {
     resolver: zodResolver(forgotPasswordSchema),
   });
 
+  
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (cooldown > 0) {
+      timer = setInterval(() => {
+        setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
   const onSubmit = async (data: ForgotPasswordForm) => {
     setIsLoading(true);
     try {
       await sendPasswordResetEmail(auth, data.email);
       setEmailSent(true);
+      setCooldown(180); 
       toast.success("Password reset email sent! Check your inbox.");
     } catch (error: any) {
       console.error("Password reset error:", error.code);
@@ -67,12 +80,13 @@ export default function ForgotPasswordPage() {
 
   const handleResendEmail = async () => {
     const email = getValues("email");
-    if (!email) return;
-    
+    if (!email || cooldown > 0) return;
+
     setIsLoading(true);
     try {
       await sendPasswordResetEmail(auth, email);
       toast.success("Password reset email sent again!");
+      setCooldown(180); 
     } catch (error) {
       toast.error("Failed to resend email. Please try again.");
     } finally {
@@ -167,10 +181,14 @@ export default function ForgotPasswordPage() {
                   <Button
                     variant="outline"
                     onClick={handleResendEmail}
-                    disabled={isLoading}
+                    disabled={isLoading || cooldown > 0}
                     className="w-full"
                   >
-                    {isLoading ? "Sending..." : "Resend Email"}
+                    {cooldown > 0
+                      ? `Resend in ${cooldown}s`
+                      : isLoading
+                      ? "Sending..."
+                      : "Resend Email"}
                   </Button>
                 </div>
               </div>

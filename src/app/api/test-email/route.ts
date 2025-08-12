@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 export async function GET() {
-  const testEmail = "e23cseu0720@bennett.edu.in";
+  const testEmail = "s24cseu1593@bennett.edu.in";
   
   const results = {
     tests: [] as any[],

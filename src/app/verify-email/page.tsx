@@ -232,7 +232,7 @@ export default function VerifyEmailPage() {
 
           <div className="text-center pt-4 border-t space-y-2">
             <p className="text-sm text-muted-foreground">
-              Didn't receive the code?
+              Didn&apos;t receive the code?
             </p>
             <Button
               onClick={handleResendCode}

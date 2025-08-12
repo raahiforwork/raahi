@@ -2,437 +2,261 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Head from "next/head";
-import { auth, db } from "@/lib/firebase";
-import {
-  signInWithEmailAndPassword,
-  signOut,
-} from "firebase/auth";
-import {
-  doc,
-  getDoc,
-  deleteDoc,
-  updateDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { CheckCircle, Clock, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { CheckCircle, Mail, RefreshCw, ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function VerifyEmailPage() {
+  const [verificationCode, setVerificationCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
-  const [tokenData, setTokenData] = useState<any>(null);
-  const [step, setStep] = useState<
-    "validating" | "ready" | "password_required" | "expired" | "invalid" | "completed"
-  >("validating");
-  const [countdown, setCountdown] = useState(5);
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [canResend, setCanResend] = useState(true);
+  const [countdown, setCountdown] = useState(0);
 
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const token = searchParams?.get("token");
-  const uid = searchParams?.get("uid");
-
-  useEffect(() => {
-    if (searchParams && (!token || !uid)) {
-      toast.error("Invalid verification link. Redirecting to signup page.");
-      setTimeout(() => {
-        router.push("/signup");
-      }, 2000);
-    }
-  }, [searchParams, token, uid, router]);
+  
+  const userId = searchParams.get("uid");
+  const userEmail = searchParams.get("email");
+  const firstName = searchParams.get("firstName");
+  const lastName = searchParams.get("lastName");
 
   useEffect(() => {
-    if (searchParams && token && uid) {
-      verifyCustomToken(token, uid);
-    } else if (searchParams && (!token || !uid)) {
-      setStep("invalid");
-    }
-  }, [searchParams, token, uid]);
-
-  useEffect(() => {
-    if (step === "completed" && countdown > 0) {
-      const timer = setTimeout(() => {
-        setCountdown((prev) => prev - 1);
-      }, 1000);
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (step === "completed" && countdown === 0) {
-      router.push("/login?verified=true");
+    } else {
+      setCanResend(true);
     }
-  }, [step, countdown, router]);
+  }, [countdown]);
 
-  const verifyCustomToken = async (token: string, uid: string) => {
-    try {
-      const docRef = doc(db, "pendingVerifications", uid);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-
-        if (data.token === token) {
-          if (data.expiresAt.toDate() > new Date()) {
-            setTokenData(data);
-            setStep("password_required");
-          } else {
-            setStep("expired");
-          }
-        } else {
-          setStep("invalid");
-        }
-      } else {
-        setStep("invalid");
-      }
-    } catch (error) {
-      console.error("Error validating token:", error);
-      setStep("invalid");
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!verificationCode || verificationCode.length !== 6) {
+      toast.error("Please enter a valid 6-digit code");
+      return;
     }
-  };
 
-  const handlePasswordSubmit = async () => {
-    if (!password || !tokenData) {
-      toast.error("Please enter your password");
+    if (!userId) {
+      toast.error("Invalid verification link");
       return;
     }
 
     setIsVerifying(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        tokenData.email,
-        password
-      );
-
-      await updateDoc(doc(db, "users", tokenData.userId), {
-        isVerified: true,
-        emailVerified: true,
-        emailVerifiedAt: serverTimestamp(),
-        verificationPending: false
+      const response = await fetch("/api/verify-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          verificationCode
+        }),
       });
 
-      await deleteDoc(doc(db, "pendingVerifications", tokenData.userId));
+      const result = await response.json();
 
-      await signOut(auth);
-
-      console.log("User verification status updated successfully");
-      setStep("completed");
-      toast.success("Email verification completed successfully!");
-
-    } catch (error: any) {
-      console.error("Password verification error:", error);
-      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        toast.error("Incorrect password. Please try again.");
+      if (response.ok) {
+        setIsVerified(true);
+        toast.success("Email verified successfully!");
+        
+        setTimeout(() => {
+          router.push("/login?verified=true");
+        }, 2000);
       } else {
-        toast.error("Failed to verify credentials. Please try again.");
+        toast.error(result.message || "Verification failed");
       }
+    } catch (error) {
+      toast.error("Verification failed. Please try again.");
     } finally {
       setIsVerifying(false);
     }
   };
 
-  const handleResendNewVerificationEmail = async () => {
-    if (!tokenData) return;
+  const handleResendCode = async () => {
+    if (!canResend || !userEmail || !firstName || !lastName || !userId) {
+      toast.error("Cannot resend code at this time");
+      return;
+    }
+
+    setIsResending(true);
+    setCanResend(false);
+    setCountdown(180);
 
     try {
-      const newToken = crypto.randomUUID();
-      const newExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      await updateDoc(doc(db, "pendingVerifications", tokenData.userId), {
-        token: newToken,
-        expiresAt: newExpiry,
-        updatedAt: serverTimestamp(),
-      });
-
-      const newVerificationUrl = `${window.location.origin}/verify-email?token=${newToken}&uid=${tokenData.userId}`;
-
-      const response = await fetch("/api/send-verification-email", {
+      const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      const updateResponse = await fetch("/api/update-verification-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: tokenData.email,
-          firstName: tokenData.firstName,
-          lastName: tokenData.lastName,
-          verificationUrl: newVerificationUrl,
+          userId,
+          verificationCode: newCode
         }),
       });
 
-      if (response.ok) {
-        toast.success("New verification email sent! Check your inbox.");
-      } else {
-        throw new Error("Failed to send email");
+      if (!updateResponse.ok) {
+        throw new Error("Failed to generate new code");
       }
 
+      const emailResponse = await fetch("/api/send-verification-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userEmail,
+          firstName,
+          lastName,
+          verificationCode: newCode
+        }),
+      });
+
+      if (emailResponse.ok) {
+        toast.success("New verification code sent!");
+        setVerificationCode("");
+      } else {
+        throw new Error("Failed to send code");
+      }
     } catch (error) {
-      console.error("Resend email error:", error);
-      toast.error("Failed to send new verification email. Please try again.");
+      toast.error("Failed to resend code. Please try again.");
+      setCanResend(true);
+      setCountdown(0);
+    } finally {
+      setIsResending(false);
     }
   };
 
-  if (!searchParams) {
+  if (isVerified) {
     return (
-      <>
-        <Head>
-          <meta name="robots" content="noindex, nofollow" />
-          <title>Email Verification - Loading</title>
-        </Head>
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardContent className="flex items-center justify-center p-8">
-              <div className="text-center">
-                <Clock className="h-8 w-8 animate-spin mx-auto mb-4" />
-                <p>Loading verification page...</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </>
-    );
-  }
-
-  if (step === "validating") {
-    return (
-      <>
-        <Head>
-          <meta name="robots" content="noindex, nofollow" />
-          <title>Email Verification - Validating</title>
-        </Head>
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardContent className="flex items-center justify-center p-8">
-              <div className="text-center">
-                <Clock className="h-8 w-8 animate-spin mx-auto mb-4" />
-                <p>Validating verification link...</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </>
-    );
-  }
-
-  if (step === "invalid") {
-    return (
-      <>
-        <Head>
-          <meta name="robots" content="noindex, nofollow" />
-          <title>Email Verification - Invalid</title>
-        </Head>
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="h-6 w-6 text-destructive" />
-                <CardTitle>Invalid Verification Link</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="mb-4">
-                This verification link is invalid or malformed.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Please ensure you clicked the complete link from your email, or request a new verification email.
-              </p>
-              <div className="space-y-2">
-                <Button onClick={() => router.push("/signup")} className="w-full">
-                  Back to Signup
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => router.push("/login")} 
-                  className="w-full"
-                >
-                  Go to Login
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </>
-    );
-  }
-
-  if (step === "expired") {
-    return (
-      <>
-        <Head>
-          <meta name="robots" content="noindex, nofollow" />
-          <title>Email Verification - Expired</title>
-        </Head>
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="h-6 w-6 text-destructive" />
-                <CardTitle>Link Expired</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="mb-4">
-                This verification link has expired (24 hour limit).
-              </p>
-              <p className="text-sm text-muted-foreground">
-                For security reasons, verification links expire after 24 hours. You can request a new verification email below.
-              </p>
-              <Button onClick={handleResendNewVerificationEmail} className="w-full">
-                Send New Verification Email
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </>
-    );
-  }
-
-  if (step === "password_required") {
-    return (
-      <>
-        <Head>
-          <meta name="robots" content="noindex, nofollow" />
-          <title>Email Verification - Confirm Identity</title>
-        </Head>
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Confirm Your Identity</CardTitle>
-              <CardDescription>
-                Enter your password to verify your email address
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-muted p-4 rounded-lg">
-                <p className="text-sm">
-                  <strong>Email:</strong> {tokenData?.email}
-                </p>
-                <p className="text-sm">
-                  <strong>Name:</strong> {tokenData?.firstName} {tokenData?.lastName}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your account password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isVerifying}
-                    onKeyPress={(e) => e.key === "Enter" && handlePasswordSubmit()}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Quick Verification:</strong><br />
-                  Once you enter the correct password, your email will be immediately verified.
-                </p>
-              </div>
-
-              <Button
-                onClick={handlePasswordSubmit}
-                disabled={isVerifying || !password}
-                className="w-full"
-              >
-                {isVerifying ? "Verifying..." : "Verify Email"}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </>
-    );
-  }
-
-  if (step === "completed") {
-    return (
-      <>
-        <Head>
-          <meta name="robots" content="noindex, nofollow" />
-          <title>Email Verification - Completed</title>
-        </Head>
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="h-6 w-6 text-green-600" />
-                <CardTitle>Email Verified Successfully!</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p>
-                Congratulations! Your email has been verified and your account is now fully activated.
-              </p>
-              <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
-                <p className="text-sm text-green-800 dark:text-green-200">
-                  <strong>Welcome to your platform!</strong><br />
-                  Your email has been verified. You can now access all features.
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-2">
-                  Redirecting to login in {countdown} seconds...
-                </p>
-                <Button
-                  onClick={() => router.push("/login?verified=true")}
-                  className="w-full"
-                >
-                  Continue to Login
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border shadow-lg bg-card/80 backdrop-blur">
+          <CardHeader className="text-center space-y-4">
+      
+            <Link href="/" className="flex flex-col items-center space-y-2">
+              <Image src="/logo.png" alt="Raahi Logo" width={64} height={64} className="object-contain rounded" />
+              <span className="text-xl font-bold gradient-text">Raahi</span>
+            </Link>
+            
+            <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-300">
+              Email Verified Successfully!
+            </CardTitle>
+            <CardDescription>
+              Redirecting you to login page...
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <>
-      <Head>
-        <meta name="robots" content="noindex, nofollow" />
-        <title>Email Verification</title>
-      </Head>
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Verify Your Email</CardTitle>
-            <CardDescription>
-              Preparing email verification...
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center">
-              <Clock className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p>Loading...</p>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
+        <Link
+          href="/login"
+          className="flex items-center space-x-2 text-sm hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back to Login</span>
+        </Link>
+        <ThemeToggle />
       </div>
-    </>
+
+      <Card className="w-full max-w-md border shadow-lg bg-card/80 backdrop-blur">
+        <CardHeader className="text-center space-y-4">
+          {/* Raahi Logo */}
+          <Link href="/" className="flex flex-col items-center space-y-2">
+            <Image src="/logo.png" alt="Raahi Logo" width={64} height={64} className="object-contain rounded" />
+            <span className="text-xl font-bold gradient-text">Raahi</span>
+          </Link>
+          
+          <div className="mx-auto w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+            <Mail className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+          </div>
+          <CardTitle>Verify Your Email</CardTitle>
+          <CardDescription>
+            Enter the 6-digit code sent to your Bennett email address
+          </CardDescription>
+          {userEmail && (
+            <p className="text-xs text-muted-foreground font-mono">
+              {userEmail}
+            </p>
+          )}
+        </CardHeader>
+        
+        <CardContent className="space-y-4">
+          <form onSubmit={handleVerifyCode} className="space-y-4">
+            <div>
+              <Label htmlFor="code">Verification Code</Label>
+              <Input
+                id="code"
+                type="text"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="123456"
+                className="text-center text-2xl tracking-widest font-mono"
+                maxLength={6}
+                disabled={isVerifying}
+                autoComplete="one-time-code"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Code expires in 10 minutes
+              </p>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isVerifying || verificationCode.length !== 6}
+            >
+              {isVerifying ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Verifying...
+                </>
+              ) : (
+                "Verify Email"
+              )}
+            </Button>
+          </form>
+
+          <div className="text-center pt-4 border-t space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Didn't receive the code?
+            </p>
+            <Button
+              onClick={handleResendCode}
+              disabled={!canResend || isResending}
+              variant="outline"
+              size="sm"
+            >
+              {isResending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : countdown > 0 ? (
+                `Resend in ${countdown}s`
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Resend Code
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

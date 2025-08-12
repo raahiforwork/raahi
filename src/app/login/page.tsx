@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import ResendVerification from "@/components/ResendVerification";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -25,7 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import ThemeToggle from "@/components/ThemeToggle";
-import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, RefreshCw } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle } from "lucide-react";
 
 const loginSchema = z.object({
   email: z
@@ -57,9 +56,6 @@ const getErrorMessage = (errorCode: string): string => {
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showEmailVerificationError, setShowEmailVerificationError] = useState(false);
-  const [lastAttemptedEmail, setLastAttemptedEmail] = useState("");
-  const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   
   const router = useRouter();
 
@@ -67,7 +63,6 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    watch,
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     mode: "onBlur",
@@ -87,8 +82,6 @@ export default function LoginPage() {
     if (isLoading || isSubmitting) return;
 
     setIsLoading(true);
-    setShowEmailVerificationError(false);
-    setLastAttemptedEmail(data.email);
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
@@ -115,11 +108,16 @@ export default function LoginPage() {
         });
 
         await signOut(auth);
-        setShowEmailVerificationError(true);
         
-        toast.error("Email verification required. Please check your email and complete verification before signing in.");
+        toast.error("Please verify your email first. You will be redirected to the verification page.");
+    
+        setTimeout(() => {
+          router.push(`/verify-email?uid=${user.uid}&email=${encodeURIComponent(data.email)}&firstName=${encodeURIComponent(userData.firstName || '')}&lastName=${encodeURIComponent(userData.lastName || '')}`);
+        }, 1000);
+        
         return;
       }
+
 
       await updateDoc(userDocRef, {
         lastSignIn: serverTimestamp(),
@@ -131,36 +129,8 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error("Login error:", error);
       toast.error(getErrorMessage(error.code));
-      setShowEmailVerificationError(false);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const checkVerificationStatus = async () => {
-    if (!lastAttemptedEmail) {
-      toast.error("Please enter your email first.");
-      return;
-    }
-
-    setIsCheckingVerification(true);
-
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, lastAttemptedEmail, "dummy");
-      
-    } catch (error: any) {
-      if (error.code === 'auth/wrong-password') {
-        try {
-          toast.info("Please enter your correct password and try signing in again.");
-        } catch (e) {
-          
-        }
-      } else if (error.code === 'auth/user-not-found') {
-        toast.error("No account found with this email. Please sign up first.");
-        setShowEmailVerificationError(false);
-      }
-    } finally {
-      setIsCheckingVerification(false);
     }
   };
 
@@ -282,70 +252,6 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
-
-            {/* Email Verification Error Message with Resend Button */}
-            {showEmailVerificationError && (
-              <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800">
-                <CardContent className="pt-4">
-                  <div className="flex items-start space-x-3">
-                    <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                    <div className="space-y-3 flex-1">
-                      <div>
-                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                          Email Verification Required
-                        </p>
-                        <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                          Your email address hasn&apos;t been verified yet. Please complete the 
-                          verification process before signing in.
-                        </p>
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                          Email: {lastAttemptedEmail}
-                        </p>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-1 gap-2">
-                          <ResendVerification
-                            email={lastAttemptedEmail}
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onSuccess={() => {
-                              toast.success("New verification email sent! Check your inbox.");
-                            }}
-                          />
-                          
-                          <Button
-                            onClick={checkVerificationStatus}
-                            disabled={isCheckingVerification}
-                            variant="ghost"
-                            size="sm"
-                          >
-                            {isCheckingVerification ? (
-                              <>
-                                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                                Checking...
-                              </>
-                            ) : (
-                              <>
-                                <RefreshCw className="h-3 w-3 mr-1" />
-                                Try Signing In Again
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                        
-                        <p className="text-xs text-amber-600 dark:text-amber-400">
-                          Check your email inbox and spam folder. Click the verification link, 
-                          then try signing in again.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
           </CardContent>
 
           <CardFooter className="text-center">

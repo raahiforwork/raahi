@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { CheckCircle, Mail, RefreshCw, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import ThemeToggle from "@/components/ThemeToggle";
+
 
 export default function VerifyEmailPage() {
   const [verificationCode, setVerificationCode] = useState("");
@@ -169,7 +169,7 @@ export default function VerifyEmailPage() {
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Login</span>
         </Link>
-        <ThemeToggle />
+        
       </div>
 
       <Card className="w-full max-w-md border shadow-lg bg-card/80 backdrop-blur">

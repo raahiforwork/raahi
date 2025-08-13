@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import ThemeToggle from "@/components/ThemeToggle";
+
 import {
   Eye,
   EyeOff,
@@ -239,7 +239,7 @@ export default function SignupPage() {
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Home</span>
         </Link>
-        <ThemeToggle />
+       
       </div>
 
       <div className="w-full max-w-md">

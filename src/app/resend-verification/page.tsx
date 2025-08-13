@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import ResendVerification from "@/components/ResendVerification";
 import { Mail, ArrowLeft } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
+
 
 export default function ResendVerificationPage() {
   const searchParams = useSearchParams();
@@ -25,7 +25,7 @@ export default function ResendVerificationPage() {
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Login</span>
         </Link>
-        <ThemeToggle />
+       
       </div>
 
       <Card className="w-full max-w-md border shadow-lg bg-card/80 backdrop-blur">

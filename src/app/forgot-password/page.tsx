@@ -22,7 +22,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import ThemeToggle from "@/components/ThemeToggle";
+
 import { Mail, ArrowLeft, CheckCircle } from "lucide-react";
 
 const forgotPasswordSchema = z.object({
@@ -106,7 +106,7 @@ export default function ForgotPasswordPage() {
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Login</span>
         </Link>
-        <ThemeToggle />
+       
       </div>
 
       <div className="w-full max-w-md">

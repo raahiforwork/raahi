@@ -23,7 +23,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import ThemeToggle from "@/components/ThemeToggle";
+
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle } from "lucide-react";
 
 const loginSchema = z.object({
@@ -38,19 +38,22 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-const getErrorMessage = (errorCode: string): string => {
+const getErrorMessage = (errorCode?: string): string => {
   const errorMessages: Record<string, string> = {
-    'auth/user-not-found': 'No account found with this email address.',
-    'auth/wrong-password': 'Incorrect password. Please try again.',
-    'auth/invalid-email': 'Please enter a valid email address.',
-    'auth/user-disabled': 'This account has been disabled. Contact support.',
-    'auth/too-many-requests': 'Too many failed attempts. Please try again in a few minutes.',
-    'auth/network-request-failed': 'Network error. Please check your internet connection.',
-    'auth/invalid-credential': 'Invalid email or password. Please check your credentials.',
-    'auth/account-exists-with-different-credential': 'An account already exists with this email.',
+    "auth/user-not-found": "No account found with this email address.",
+    "auth/wrong-password": "Incorrect password. Please try again.",
+    "auth/invalid-email": "Please enter a valid email address.",
+    "auth/user-disabled": "This account has been disabled. Contact support.",
+    "auth/too-many-requests": "Too many failed attempts. Please try again in a few minutes.",
+    "auth/network-request-failed": "Network error. Please check your internet connection.",
+    "auth/account-exists-with-different-credential": "An account already exists with this email.",
+    "auth/invalid-credential": "Invalid login credentials. Click forgot password to reset.",
+    "auth/invalid-login-credentials": "Invalid email or password.",
   };
-  
-  return errorMessages[errorCode] || 'Login failed. Please check your credentials and try again.';
+
+  if (!errorCode) return "An unknown error occurred. Please try again.";
+
+  return errorMessages[errorCode] || `Login failed: ${errorCode}`;
 };
 
 export default function LoginPage() {
@@ -126,10 +129,11 @@ export default function LoginPage() {
       toast.success(`Welcome back, ${userData.firstName || "User"}!`);
       router.replace("/dashboard");
 
-    } catch (error: any) {
-      console.error("Login error:", error);
-      toast.error(getErrorMessage(error.code));
-    } finally {
+    } catch (err) {
+  const error = err as { code?: string; message?: string };
+  console.error("Login error:", error);
+  toast.error(getErrorMessage(error.code));
+} finally {
       setIsLoading(false);
     }
   };
@@ -150,7 +154,7 @@ export default function LoginPage() {
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Home</span>
         </Link>
-        <ThemeToggle />
+        
       </div>
 
       <div className="w-full max-w-md">

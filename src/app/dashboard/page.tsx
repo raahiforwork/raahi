@@ -221,7 +221,7 @@ function RideMapWrapper({
     setIsLoadingLocation(true);
 
     if (!navigator.geolocation) {
-      console.error("Geolocation is not supported by this browser.");
+      
       setIsLoadingLocation(false);
       return;
     }
@@ -233,7 +233,7 @@ function RideMapWrapper({
         setIsLoadingLocation(false);
       },
       (error) => {
-        console.error("Error getting location:", error);
+        
         setIsLoadingLocation(false);
       },
       {
@@ -366,12 +366,12 @@ async function getEstimatedArrivalTime(
 ): Promise<{ toTime: string; toDate: string }> {
   try {
     if (typeof window === "undefined" || !window.google || !google.maps) {
-      console.error("Google Maps JS API is not loaded.");
+      
       return { toTime: "Unknown", toDate: "Unknown" };
     }
 
     if (isNaN(departure.getTime())) {
-      console.warn("Invalid departure date:", departure);
+      
       return { toTime: "Unknown", toDate: "Unknown" };
     }
 
@@ -410,14 +410,14 @@ async function getEstimatedArrivalTime(
               resolve({ toTime: "Unknown", toDate: "Unknown" });
             }
           } else {
-            console.warn("Google Directions API error:", status, result);
+            
             resolve({ toTime: "Unknown", toDate: "Unknown" });
           }
         },
       );
     });
   } catch (err) {
-    console.error("Error in getEstimatedArrivalTime:", err);
+    
     return { toTime: "Unknown", toDate: "Unknown" };
   }
 }
@@ -529,7 +529,7 @@ function useUserRideHistory(userId: string | undefined) {
         })) as Ride[];
         setRideHistory(rides);
       } catch (error) {
-        console.error("Error fetching ride history:", error);
+        
         setRideHistory([]);
       }
       setLoading(false);
@@ -591,7 +591,7 @@ export default function ModernDashboard() {
     const { outcome } = await deferredPrompt.userChoice;
 
     if (outcome === "accepted") {
-      console.log("User accepted the install prompt");
+      
     }
 
     setDeferredPrompt(null);
@@ -666,7 +666,7 @@ export default function ModernDashboard() {
       const querySnapshot = await getDocs(q);
       return !querySnapshot.empty;
     } catch (error) {
-      console.error("Error checking booking status:", error);
+      
       return false;
     }
   };
@@ -695,7 +695,7 @@ export default function ModernDashboard() {
         );
         setUserBookedRides(bookedRideIds);
       } catch (error) {
-        console.error("Error fetching user bookings:", error);
+        
       }
     };
 
@@ -724,7 +724,7 @@ export default function ModernDashboard() {
       setAvailableRides(rides);
       setFilteredRides(rides);
     } catch (error) {
-      console.error("Error fetching available rides:", error);
+      
       toast.error("Failed to refresh rides");
     }
   };
@@ -927,7 +927,7 @@ export default function ModernDashboard() {
 
       router.push("/chat");
     } catch (error) {
-      console.error("Booking error:", error);
+      
       toast.error("Failed to book ride. Please try again.");
     } finally {
       setBookingLoading(null);
@@ -1036,7 +1036,7 @@ export default function ModernDashboard() {
         },
       });
     } catch (error) {
-      console.error("Error adding document or creating chat room: ", error);
+      
       toast.error("Failed to create ride.");
     }
   };
@@ -1106,10 +1106,10 @@ export default function ModernDashboard() {
         const chatRoomId = await chatService.findChatRoomByRide(createdRide.id);
         if (chatRoomId) {
           await chatService.permanentlyDeleteChat(chatRoomId);
-          console.log("Successfully deleted chat room");
+          
         }
       } catch (chatError) {
-        console.error("Error deleting chat room:", chatError);
+        
       }
 
       setCreatedRide(null);
@@ -1117,7 +1117,7 @@ export default function ModernDashboard() {
         "Ride cancelled successfully. All booked users have been notified.",
       );
     } catch (error) {
-      console.error("Cancel Ride Error:", error);
+      
       toast.error("Failed to cancel ride: " + String(error));
     }
   };
@@ -2034,7 +2034,7 @@ export default function ModernDashboard() {
                 pastRides={rideHistory || []}
                 userId={user?.uid || ""}
                 onDelete={(id) => {
-                  console.log("Deleted booking:", id);
+                  
                 }}
               />
             </div>

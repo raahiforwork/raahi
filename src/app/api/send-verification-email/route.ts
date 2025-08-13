@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       html: emailTemplate
     });
 
-    console.log("Verification email sent successfully:", info.messageId);
+    
 
     return NextResponse.json({
       message: "Verification email sent successfully",
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error("Email sending error:", error);
+    
 
     return NextResponse.json(
       {

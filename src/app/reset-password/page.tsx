@@ -69,7 +69,7 @@ export default function ResetPasswordPage() {
       toast.success("Password reset successfully!");
       router.push("/login");
     } catch (error: any) {
-      console.error("Password reset error:", error.code);
+      
       if (error.code === "auth/expired-action-code") {
         toast.error("Reset link has expired. Please request a new one.");
       } else if (error.code === "auth/invalid-action-code") {

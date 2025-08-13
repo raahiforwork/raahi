@@ -65,7 +65,7 @@ export default function ForgotPasswordPage() {
       setCooldown(180); 
       toast.success("Password reset email sent! Check your inbox.");
     } catch (error: any) {
-      console.error("Password reset error:", error.code);
+      
       if (error.code === "auth/user-not-found") {
         toast.error("No user found with this email address.");
       } else if (error.code === "auth/invalid-email") {

@@ -105,10 +105,7 @@ export default function LoginPage() {
       const userData = userDoc.data();
 
       if (!userData.isVerified || !userData.emailVerified) {
-        console.log("User verification status:", {
-          isVerified: userData.isVerified,
-          emailVerified: userData.emailVerified
-        });
+        
 
         await signOut(auth);
         
@@ -131,7 +128,7 @@ export default function LoginPage() {
 
     } catch (err) {
   const error = err as { code?: string; message?: string };
-  console.error("Login error:", error);
+  
   toast.error(getErrorMessage(error.code));
 } finally {
       setIsLoading(false);

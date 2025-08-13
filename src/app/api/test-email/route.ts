@@ -14,7 +14,7 @@ export async function GET() {
   };
 
   try {
-    console.log("Testing Gmail SMTP...");
+    
     
     const gmailTransporter = nodemailer.createTransport({
       service: 'gmail',

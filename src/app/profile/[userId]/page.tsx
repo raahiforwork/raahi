@@ -104,7 +104,7 @@ const UserProfilePage = () => {
         setRidesJoined(bookingsSnapshot.size);
 
       } catch (error) {
-        console.error("Error fetching user profile:", error);
+        
         toast.error("Failed to load user profile");
         router.back();
       } finally {

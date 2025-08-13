@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error("Code verification error:", error);
+    
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 }

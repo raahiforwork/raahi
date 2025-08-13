@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       `
     });
 
-    console.log("Verification code sent successfully:", info.messageId);
+    
 
     return NextResponse.json({
       message: "Verification code sent successfully",
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error("Email sending error:", error);
+    
 
     return NextResponse.json(
       {

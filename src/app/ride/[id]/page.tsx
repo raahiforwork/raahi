@@ -135,7 +135,7 @@ const RideDetailsPage = () => {
       }
       return false;
     } catch (error) {
-      console.error("Error checking booking:", error);
+      
       return false;
     }
   };
@@ -149,7 +149,7 @@ const RideDetailsPage = () => {
         setUserProfile(userDoc.data());
       }
     } catch (error) {
-      console.error("Error fetching user profile:", error);
+      
     }
   };
 
@@ -223,11 +223,11 @@ const RideDetailsPage = () => {
             }
           }
         } else {
-          console.error("Ride document not found");
+          
           router.push("/dashboard");
         }
       } catch (error) {
-        console.error("Error fetching ride details:", error);
+        
         toast.error("Failed to load trip details");
         router.push("/dashboard");
       } finally {
@@ -327,10 +327,10 @@ const RideDetailsPage = () => {
 
         if (chatRoomId && user) {
           await chatService.joinChatRoom(chatRoomId, user.uid, userDetails);
-          console.log("Successfully joined chat room");
+          
         }
       } catch (chatError) {
-        console.error("Error joining chat room:", chatError);
+        
       }
 
       setUserBookedRides((prev) => [
@@ -364,7 +364,7 @@ const RideDetailsPage = () => {
         "Ride booked successfully! You can now chat with other travelers.",
       );
     } catch (error) {
-      console.error("Error booking ride:", error);
+      
       toast.error("Failed to book ride. Please try again.");
     } finally {
       setBookingLoading(false);
@@ -410,10 +410,10 @@ const RideDetailsPage = () => {
         const chatRoomId = await chatService.findChatRoomByRide(ride.id);
         if (chatRoomId) {
           await chatService.leaveChatRoom(chatRoomId, user.uid);
-          console.log("Successfully left chat room");
+          
         }
       } catch (chatError) {
-        console.error("Error leaving chat room:", chatError);
+        
       }
 
       setUserBookedRides((prev) => prev.filter((id) => id !== ride.id));
@@ -432,7 +432,7 @@ const RideDetailsPage = () => {
 
       toast.success("You have left the ride successfully.");
     } catch (error) {
-      console.error("Error leaving ride:", error);
+      
       toast.error("Failed to leave ride: " + String(error));
     }
 
@@ -495,10 +495,10 @@ const RideDetailsPage = () => {
         const chatRoomId = await chatService.findChatRoomByRide(ride.id);
         if (chatRoomId) {
           await chatService.permanentlyDeleteChat(chatRoomId);
-          console.log("Successfully deleted chat room");
+          
         }
       } catch (chatError) {
-        console.error("Error deleting chat room:", chatError);
+        
       }
 
       toast.success(
@@ -506,7 +506,7 @@ const RideDetailsPage = () => {
       );
       router.push("/dashboard");
     } catch (error) {
-      console.error("Error cancelling ride:", error);
+      
       toast.error("Failed to cancel ride: " + String(error));
     }
 
@@ -552,12 +552,10 @@ const RideDetailsPage = () => {
         const chatRoomId = await chatService.findChatRoomByRide(ride.id);
         if (chatRoomId) {
           await chatService.removeFromChatRoom(chatRoomId, participant.userId);
-          console.log(
-            `Successfully removed ${participant.name} from chat room`,
-          );
+          
         }
       } catch (chatError) {
-        console.error("Error removing user from chat room:", chatError);
+        
       }
 
       setParticipants((prev) => prev.filter((p) => p.id !== participant.id));
@@ -573,7 +571,7 @@ const RideDetailsPage = () => {
 
       toast.success(`${participant.name} has been removed from the ride.`);
     } catch (error) {
-      console.error("Error removing user:", error);
+      
       toast.error("Failed to remove user: " + String(error));
     }
 
@@ -827,7 +825,7 @@ const RideDetailsPage = () => {
 
                   router.push("/chat");
                 } catch (error) {
-                  console.error("Error accessing chat:", error);
+                  
                   toast.error("Failed to access chat. Please try again.");
                 }
               }}

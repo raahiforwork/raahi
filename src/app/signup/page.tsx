@@ -190,8 +190,6 @@ export default function SignupPage() {
           );
         }
 
-        console.log("Verification code sent successfully:", result);
-
         toast.success("Account created! Check your email for the verification code.");
 
         
@@ -200,7 +198,6 @@ export default function SignupPage() {
         router.push(verificationUrl);
 
       } catch (emailError: any) {
-        console.error("Email sending failed:", emailError);
         toast.error(
           "Account created but failed to send verification code. Please contact support.",
         );
@@ -208,7 +205,6 @@ export default function SignupPage() {
       }
 
     } catch (err: any) {
-      console.error("Signup error:", err.code);
       toast.error(getErrorMessage(err.code));
     } finally {
       setIsLoading(false);

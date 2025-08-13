@@ -59,7 +59,7 @@ type BookedRide = {
   userName: string;
   userEmail: string;
   bookedAt: any;
-  status: "active" | "completed" | "cancelled" | "left";
+  status: "active" | "completed" | "cancelled" | "left" | "full";
   from: string;
   to: string;
   date: string;
@@ -119,7 +119,6 @@ export default function PastRides({
   const [cancellingRide, setCancellingRide] = useState<string | null>(null);
   const router = useRouter();
 
-  // [Keep all your existing useEffect and handler functions unchanged - they're optimized]
   useEffect(() => {
     const fetchUserRides = async () => {
       if (!userId) {
@@ -254,7 +253,7 @@ export default function PastRides({
                 userEmail: "",
                 bookedAt: null,
                 status:
-                  (ride.status as "active" | "completed" | "cancelled") ||
+                  (ride.status as "active" | "completed" | "cancelled" | "full") ||
                   "completed",
                 from: ride.from,
                 to: ride.to,
@@ -290,7 +289,7 @@ export default function PastRides({
           userEmail: "",
           bookedAt: null,
           status:
-            (ride.status as "active" | "completed" | "cancelled") ||
+            (ride.status as "active" | "completed" | "cancelled" | "full") ||
             "completed",
           from: ride.from,
           to: ride.to,
@@ -606,7 +605,7 @@ export default function PastRides({
     );
   }
 
-  const activeRides = rides.filter((ride) => ride.status === "active");
+  const activeRides = rides.filter((ride) => ride.status === "active" || ride.status === 'full');
   const completedRides = rides.filter(
     (ride) =>
       ride.status === "completed" ||
@@ -871,7 +870,7 @@ function TripCard({
                   </p>
                   <p className="text-xs text-purple-400">
                     {ride.toTime && ride.toTime !== "Unknown"
-                      ? formatToAmPm(ride.toTime)
+                      ? ride.toTime
                       : "Drop-off"}
                   </p>
                 </div>

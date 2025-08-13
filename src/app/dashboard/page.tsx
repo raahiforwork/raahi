@@ -79,8 +79,6 @@ import PastRides from "@/components/dashboard/PastRides";
 import { FaRupeeSign } from "react-icons/fa";
 import { UserProfile } from "@/components/dashboard/UserProfile";
 
-
-
 const nunito = Nunito({ subsets: ["latin"], weight: ["400", "700"] });
 
 type LatLng = {
@@ -544,7 +542,6 @@ function useUserRideHistory(userId: string | undefined) {
 }
 
 export default function ModernDashboard() {
-
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   interface BeforeInstallPromptEvent extends Event {
@@ -750,7 +747,7 @@ export default function ModernDashboard() {
       const q = query(
         collection(db, "Rides"),
         where("userId", "==", user.uid),
-        where("status", "==", "active"),
+        where("status", "in", ["active","full"]),
         limit(1),
       );
       const querySnapshot = await getDocs(q);
@@ -1051,72 +1048,79 @@ export default function ModernDashboard() {
   };
 
   const handleCancelRide = async () => {
-  if (!createdRide || !createdRide.id || !user) return;
-
-  try {
-    const rideRef = doc(db, "Rides", createdRide.id);
-    const rideDoc = await getDoc(rideRef);
-    
-    if (!rideDoc.exists()) {
-      throw new Error("Ride not found");
-    }
-
-    const fullRideData = rideDoc.data();
-    const batch = writeBatch(db);
-
-    batch.delete(rideRef);
-
-    const historyRef = doc(db, "users", user.uid, "rideHistory", createdRide.id);
-    batch.set(historyRef, {
-      ...fullRideData,
-      cancelledAt: serverTimestamp(),
-      status: "cancelled",
-      reason: "cancelled_by_creator"
-    });
-
-    const bookingsQuery = query(
-      collection(db, "bookings"),
-      where("rideId", "==", createdRide.id)
-    );
-    const bookingsSnapshot = await getDocs(bookingsQuery);
-
-    bookingsSnapshot.docs.forEach(bookingDoc => {
-      batch.delete(bookingDoc.ref);
-
-      const bookingData = bookingDoc.data();
-      if (bookingData.userId !== user.uid) {
-        const userRideHistoryRef = doc(
-          collection(db, "users", bookingData.userId, "rideHistory")
-        );
-        batch.set(userRideHistoryRef, {
-          ...fullRideData,
-          cancelledAt: serverTimestamp(),
-          status: "cancelled",
-          reason: "cancelled_by_creator"
-        });
-      }
-    });
-
-    await batch.commit();
+    if (!createdRide || !createdRide.id || !user) return;
 
     try {
-      const chatRoomId = await chatService.findChatRoomByRide(createdRide.id);
-      if (chatRoomId) {
-        await chatService.permanentlyDeleteChat(chatRoomId);
-        console.log("Successfully deleted chat room");
+      const rideRef = doc(db, "Rides", createdRide.id);
+      const rideDoc = await getDoc(rideRef);
+
+      if (!rideDoc.exists()) {
+        throw new Error("Ride not found");
       }
-    } catch (chatError) {
-      console.error("Error deleting chat room:", chatError);
+
+      const fullRideData = rideDoc.data();
+      const batch = writeBatch(db);
+
+      batch.delete(rideRef);
+
+      const historyRef = doc(
+        db,
+        "users",
+        user.uid,
+        "rideHistory",
+        createdRide.id,
+      );
+      batch.set(historyRef, {
+        ...fullRideData,
+        cancelledAt: serverTimestamp(),
+        status: "cancelled",
+        reason: "cancelled_by_creator",
+      });
+
+      const bookingsQuery = query(
+        collection(db, "bookings"),
+        where("rideId", "==", createdRide.id),
+      );
+      const bookingsSnapshot = await getDocs(bookingsQuery);
+
+      bookingsSnapshot.docs.forEach((bookingDoc) => {
+        batch.delete(bookingDoc.ref);
+
+        const bookingData = bookingDoc.data();
+        if (bookingData.userId !== user.uid) {
+          const userRideHistoryRef = doc(
+            collection(db, "users", bookingData.userId, "rideHistory"),
+          );
+          batch.set(userRideHistoryRef, {
+            ...fullRideData,
+            cancelledAt: serverTimestamp(),
+            status: "cancelled",
+            reason: "cancelled_by_creator",
+          });
+        }
+      });
+
+      await batch.commit();
+
+      try {
+        const chatRoomId = await chatService.findChatRoomByRide(createdRide.id);
+        if (chatRoomId) {
+          await chatService.permanentlyDeleteChat(chatRoomId);
+          console.log("Successfully deleted chat room");
+        }
+      } catch (chatError) {
+        console.error("Error deleting chat room:", chatError);
+      }
+
+      setCreatedRide(null);
+      toast.success(
+        "Ride cancelled successfully. All booked users have been notified.",
+      );
+    } catch (error) {
+      console.error("Cancel Ride Error:", error);
+      toast.error("Failed to cancel ride: " + String(error));
     }
-
-    setCreatedRide(null);
-    toast.success("Ride cancelled successfully. All booked users have been notified.");
-
-  } catch (error) {
-    console.error("Cancel Ride Error:", error);
-    toast.error("Failed to cancel ride: " + String(error));
-  }
-};
+  };
 
   function getSelectedPreferences() {
     const prefs = [];
@@ -1322,65 +1326,68 @@ export default function ModernDashboard() {
 
                   {/* Date Picker */}
                   <div className="w-full sm:w-auto sm:flex-1 sm:max-w-sm lg:flex-none lg:w-full lg:max-w-sm">
-                   <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-    <PopoverTrigger asChild>
-      <Button
-        variant="outline"
-        className="py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white rounded-xl hover:border-purple-500/50 transition-all duration-300 text-sm sm:text-base w-full"
-      >
-        <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400 mr-2" />
-        {customDateRange
-          ? customDateRange.start
-          : "Pick date"}
-      </Button>
-    </PopoverTrigger>
-    <PopoverContent className="w-auto p-0 bg-gray-800 border-gray-700 rounded-xl">
-      <div className="p-3">
-        <Calendar
-          mode="single"
-          selected={
-            customDateRange
-              ? new Date(customDateRange.start)
-              : undefined
-          }
-          onSelect={(date: Date | undefined) => {
-            if (!date) {
-              setCustomDateRange(null);
-              return;
-            }
-            const selectedDate = toYMD(date);
-            setCustomDateRange({
-              start: selectedDate,
-              end: selectedDate,
-            });
-            setSelectedDate(undefined);
-          }}
-          className="rounded-md"
-        />
-        <div className="flex justify-end p-2 gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setCustomDateRange(null);
-              setIsCalendarOpen(false);
-            }}
-          >
-            Clear
-          </Button>
-          <Button 
-            size="sm" 
-            onClick={() => {
-              handleSearch();
-              setIsCalendarOpen(false);
-            }}
-          >
-            Apply
-          </Button>
-        </div>
-      </div>
-    </PopoverContent>
-  </Popover>
+                    <Popover
+                      open={isCalendarOpen}
+                      onOpenChange={setIsCalendarOpen}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="py-3 sm:py-4 bg-gray-800/50 border-gray-600/50 text-white rounded-xl hover:border-purple-500/50 transition-all duration-300 text-sm sm:text-base w-full"
+                        >
+                          <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400 mr-2" />
+                          {customDateRange
+                            ? customDateRange.start
+                            : "Pick date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-gray-800 border-gray-700 rounded-xl">
+                        <div className="p-3">
+                          <Calendar
+                            mode="single"
+                            selected={
+                              customDateRange
+                                ? new Date(customDateRange.start)
+                                : undefined
+                            }
+                            onSelect={(date: Date | undefined) => {
+                              if (!date) {
+                                setCustomDateRange(null);
+                                return;
+                              }
+                              const selectedDate = toYMD(date);
+                              setCustomDateRange({
+                                start: selectedDate,
+                                end: selectedDate,
+                              });
+                              setSelectedDate(undefined);
+                            }}
+                            className="rounded-md"
+                          />
+                          <div className="flex justify-end p-2 gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setCustomDateRange(null);
+                                setIsCalendarOpen(false);
+                              }}
+                            >
+                              Clear
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                handleSearch();
+                                setIsCalendarOpen(false);
+                              }}
+                            >
+                              Apply
+                            </Button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
 
@@ -1557,7 +1564,7 @@ export default function ModernDashboard() {
                               : createdRide.date}
                           </p>
                           <p className="text-xl sm:text-2xl font-bold text-white mb-2">
-                            {formatToAmPm(createdRide.toTime)}
+                            {createdRide.toTime}
                           </p>
                           <p className="text-xs sm:text-sm text-gray-400 truncate mb-3">
                             {createdRide.to}
@@ -1641,7 +1648,9 @@ export default function ModernDashboard() {
                           <Button
                             size="sm"
                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm flex-1 xl2:flex-none xl2:min-w-[120px]"
-                            onClick={() => router.push(`/ride/${createdRide.id}`)}
+                            onClick={() =>
+                              router.push(`/ride/${createdRide.id}`)
+                            }
                           >
                             View Details
                           </Button>
@@ -1900,7 +1909,6 @@ export default function ModernDashboard() {
                               setCreateRideForm({
                                 ...createRideForm,
                                 vehicleType: value,
-                                // Reset both price fields when vehicle type changes
                                 totalPrice: "",
                                 pricePerSeat: "",
                               })
@@ -2032,12 +2040,10 @@ export default function ModernDashboard() {
             </div>
           )}
 
-    
           {activeTab === "profile" && <UserProfile />}
         </div>
       </div>
 
-   
       <div className="hidden md:block fixed bottom-8 right-8 z-40">
         {activeTab !== "create-ride" && (
           <FloatingButton
@@ -2049,7 +2055,6 @@ export default function ModernDashboard() {
         )}
       </div>
 
-     
       {isInstallable && !isInstalled && (
         <div className="fixed left-4 bottom-24 md:bottom-8 z-50">
           <Button

@@ -1,9 +1,21 @@
-"use client";
+import { ThemeProvider } from "next-themes";
 
-import * as React from "react";
-import { ThemeProvider as NextThemesProvider } from "next-themes";
-import { type ThemeProviderProps } from "next-themes/dist/types";
-
-export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  return <NextThemesProvider {...props}>{children}</NextThemesProvider>;
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className="dark bg-background text-foreground">
+        <ThemeProvider
+          attribute="class"
+          forcedTheme="dark"
+          storageKey="theme"
+        >
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
+  );
 }

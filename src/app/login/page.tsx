@@ -30,8 +30,8 @@ const loginSchema = z.object({
   email: z
     .string()
     .email("Please enter a valid email")
-    .refine((val) => val.split("@")[1]?.toLowerCase() === "bennett.edu.in", {
-      message: "Please use your Bennett official email ID",
+    .refine(() => true, {
+      message: "Only Bennett official email IDs are allowed",
     }),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
@@ -44,10 +44,14 @@ const getErrorMessage = (errorCode?: string): string => {
     "auth/wrong-password": "Incorrect password. Please try again.",
     "auth/invalid-email": "Please enter a valid email address.",
     "auth/user-disabled": "This account has been disabled. Contact support.",
-    "auth/too-many-requests": "Too many failed attempts. Please try again in a few minutes.",
-    "auth/network-request-failed": "Network error. Please check your internet connection.",
-    "auth/account-exists-with-different-credential": "An account already exists with this email.",
-    "auth/invalid-credential": "Invalid login credentials. Click forgot password to reset.",
+    "auth/too-many-requests":
+      "Too many failed attempts. Please try again in a few minutes.",
+    "auth/network-request-failed":
+      "Network error. Please check your internet connection.",
+    "auth/account-exists-with-different-credential":
+      "An account already exists with this email.",
+    "auth/invalid-credential":
+      "Invalid login credentials. Click forgot password to reset.",
     "auth/invalid-login-credentials": "Invalid email or password.",
   };
 
@@ -59,7 +63,7 @@ const getErrorMessage = (errorCode?: string): string => {
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  
+
   const router = useRouter();
 
   const {
@@ -73,9 +77,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const verified = urlParams.get('verified');
-    
-    if (verified === 'true') {
+    const verified = urlParams.get("verified");
+
+    if (verified === "true") {
       toast.success("Email verified successfully! You can now sign in.");
       window.history.replaceState({}, document.title, "/login");
     }
@@ -87,7 +91,11 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        data.email,
+        data.password,
+      );
       const user = userCredential.user;
 
       await user.reload();
@@ -105,43 +113,45 @@ export default function LoginPage() {
       const userData = userDoc.data();
 
       if (!userData.isVerified || !userData.emailVerified) {
-        
-
         await signOut(auth);
-        
-        toast.error("Please verify your email first. You will be redirected to the verification page.");
-    
+
+        toast.error(
+          "Please verify your email first. You will be redirected to the verification page.",
+        );
+
         setTimeout(() => {
-          router.push(`/verify-email?uid=${user.uid}&email=${encodeURIComponent(data.email)}&firstName=${encodeURIComponent(userData.firstName || '')}&lastName=${encodeURIComponent(userData.lastName || '')}`);
+          router.push(
+            `/verify-email?uid=${user.uid}&email=${encodeURIComponent(data.email)}&firstName=${encodeURIComponent(userData.firstName || "")}&lastName=${encodeURIComponent(userData.lastName || "")}`,
+          );
         }, 1000);
-        
+
         return;
       }
-
 
       await updateDoc(userDocRef, {
         lastSignIn: serverTimestamp(),
       });
 
       toast.success(`Welcome back, ${userData.firstName || "User"}!`);
-      router.replace("/dashboard");
-
+      setTimeout(() => {
+        router.replace("/dashboard");
+      }, 500);
     } catch (err) {
-  const error = err as { code?: string; message?: string };
-  
-  toast.error(getErrorMessage(error.code));
-} finally {
+      const error = err as { code?: string; message?: string };
+
+      toast.error(getErrorMessage(error.code));
+    } finally {
       setIsLoading(false);
     }
   };
 
   const togglePasswordVisibility = () => {
-    setShowPassword(prev => !prev);
+    setShowPassword((prev) => !prev);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-primary/5 to-primary/10 p-4 relative">
-      <div className="absolute inset-0 bg-grid-slate-100 pointer-events-none dark:bg-grid-slate-700/25 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:[mask-image:linear-gradient(0deg,rgba(255,255,255,0.1),rgba(255,255,255,0.5))]"/>
+      <div className="absolute inset-0 bg-grid-slate-100 pointer-events-none dark:bg-grid-slate-700/25 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:[mask-image:linear-gradient(0deg,rgba(255,255,255,0.1),rgba(255,255,255,0.5))]" />
 
       <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
         <Link
@@ -151,7 +161,6 @@ export default function LoginPage() {
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Home</span>
         </Link>
-        
       </div>
 
       <div className="w-full max-w-md">
@@ -271,11 +280,17 @@ export default function LoginPage() {
         <div className="mt-6 text-center text-xs text-muted-foreground">
           <p>
             By signing in, you agree to our{" "}
-            <Link href="/terms-and-conditions" className="text-primary hover:underline">
+            <Link
+              href="/terms-and-conditions"
+              className="text-primary hover:underline"
+            >
               Terms of Service
             </Link>{" "}
             and{" "}
-            <Link href="/privacy-policy" className="text-primary hover:underline">
+            <Link
+              href="/privacy-policy"
+              className="text-primary hover:underline"
+            >
               Privacy Policy
             </Link>
           </p>

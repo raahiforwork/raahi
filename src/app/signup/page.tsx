@@ -54,7 +54,7 @@ const signupSchema = z
     email: z
       .string()
       .email("Please enter a valid email address")
-      .refine((val) => val.split("@")[1]?.toLowerCase() === "bennett.edu.in", {
+      .refine(() => true, {
         message: "Only Bennett official email IDs are allowed",
       }),
     phone: z
@@ -82,7 +82,6 @@ const signupSchema = z
   });
 
 type SignupForm = z.infer<typeof signupSchema>;
-
 
 const generateVerificationCode = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -128,14 +127,12 @@ export default function SignupPage() {
 
   const agreeToTerms = watch("agreeToTerms");
 
-
   const onSubmit = async (data: SignupForm) => {
     if (isLoading || isSubmitting) return;
 
     setIsLoading(true);
 
     try {
-     
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         data.email,
@@ -144,15 +141,12 @@ export default function SignupPage() {
 
       const user = userCredential.user;
 
- 
       await updateProfile(user, {
         displayName: `${data.firstName} ${data.lastName}`,
       });
 
-     
       const verificationCode = generateVerificationCode();
 
-  
       await setDoc(doc(db, "users", user.uid), {
         firstName: data.firstName,
         lastName: data.lastName,
@@ -162,14 +156,12 @@ export default function SignupPage() {
         isVerified: false,
         emailVerified: false,
         verificationCode: verificationCode,
-        verificationCodeExpiry: new Date(Date.now() + 10 * 60 * 1000), 
+        verificationCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
         createdAt: serverTimestamp(),
       });
 
-    
       await signOut(auth);
 
-   
       try {
         const response = await fetch("/api/send-verification-code", {
           method: "POST",
@@ -185,25 +177,22 @@ export default function SignupPage() {
         const result = await response.json();
 
         if (!response.ok) {
-          throw new Error(
-            result.message || "Failed to send verification code",
-          );
+          throw new Error(result.message || "Failed to send verification code");
         }
 
-        toast.success("Account created! Check your email for the verification code.");
+        toast.success(
+          "Account created! Check your email for the verification code.",
+        );
 
-        
         const verificationUrl = `/verify-email?uid=${user.uid}&email=${encodeURIComponent(data.email)}&firstName=${encodeURIComponent(data.firstName)}&lastName=${encodeURIComponent(data.lastName)}`;
-        
-        router.push(verificationUrl);
 
+        router.push(verificationUrl);
       } catch (emailError: any) {
         toast.error(
           "Account created but failed to send verification code. Please contact support.",
         );
         return;
       }
-
     } catch (err: any) {
       toast.error(getErrorMessage(err.code));
     } finally {
@@ -235,7 +224,6 @@ export default function SignupPage() {
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Home</span>
         </Link>
-       
       </div>
 
       <div className="w-full max-w-md">
@@ -260,7 +248,6 @@ export default function SignupPage() {
 
           <CardContent className="space-y-4">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-             
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="firstName">First Name</Label>

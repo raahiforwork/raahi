@@ -64,9 +64,8 @@ const UserProfilePage = () => {
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!userId) return;
-
+      
       try {
-        // Fetch user profile
         const userDoc = await getDoc(doc(db, "users", userId));
         if (userDoc.exists()) {
           const userData = userDoc.data();
@@ -87,7 +86,6 @@ const UserProfilePage = () => {
           return;
         }
 
-        // Fetch rides statistics
         const ridesQuery = query(
           collection(db, "Rides"),
           where("userId", "==", userId)
@@ -104,7 +102,7 @@ const UserProfilePage = () => {
         setRidesJoined(bookingsSnapshot.size);
 
       } catch (error) {
-        
+        console.log(error);
         toast.error("Failed to load user profile");
         router.back();
       } finally {

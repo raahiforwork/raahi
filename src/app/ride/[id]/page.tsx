@@ -227,7 +227,7 @@ const RideDetailsPage = () => {
           router.push("/dashboard");
         }
       } catch (error) {
-        
+        console.log(error);
         toast.error("Failed to load trip details");
         router.push("/dashboard");
       } finally {

@@ -181,7 +181,7 @@ export default function LoginPage() {
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Bennett Email</Label>
+                <Label htmlFor="email">Your Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -271,7 +271,7 @@ export default function LoginPage() {
                 href="/signup"
                 className="text-primary font-medium hover:underline"
               >
-                Sign up with Bennett email
+                Sign up with your email
               </Link>
             </p>
           </CardFooter>

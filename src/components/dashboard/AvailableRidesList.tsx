@@ -53,9 +53,6 @@ const AvailableRidesList: React.FC<AvailableRidesListProps> = ({
   const filteredRides = React.useMemo(() => {
     let filtered = rides.filter((ride) => ride.availableSeats > 0);
 
-  return rideDate >= istNow;
-});
-
     switch (filterBy) {
       case "almostFull":
         filtered = filtered.filter((ride) => {
@@ -564,4 +561,4 @@ const AvailableRidesList: React.FC<AvailableRidesListProps> = ({
   );
 };
 
-export default AvailableRidesList;
+export default AvailableRidesList; ye available rides ka code hai 

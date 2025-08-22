@@ -31,7 +31,7 @@ const loginSchema = z.object({
     .string()
     .email("Please enter a valid email")
     .refine(() => true, {
-      message: "Only Bennett official email IDs are allowed",
+      message: "Only official email IDs are allowed",
     }),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
@@ -187,7 +187,7 @@ export default function LoginPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="your.name@bennett.edu.in"
+                    placeholder="your.name@gmail.com"
                     className="pl-10"
                     {...register("email")}
                     disabled={isLoading}

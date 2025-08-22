@@ -285,11 +285,11 @@ export default function SignupPage() {
 
               {/* Email */}
               <div>
-                <Label htmlFor="email">Bennett Email</Label>
+                <Label htmlFor="email">Your Email</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="john.doe@bennett.edu.in"
+                  placeholder="john.doe@gmail.com"
                   {...register("email")}
                   disabled={isLoading}
                   autoComplete="email"

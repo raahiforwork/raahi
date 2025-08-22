@@ -55,7 +55,7 @@ const signupSchema = z
       .string()
       .email("Please enter a valid email address")
       .refine(() => true, {
-        message: "Only Bennett official email IDs are allowed",
+        message: "Only official email IDs are allowed",
       }),
     phone: z
       .string()
@@ -242,7 +242,7 @@ export default function SignupPage() {
               </CardTitle>
             </div>
             <CardDescription>
-              Create your account with Bennett email to start sharing rides
+              Create your account with your own email to start sharing rides
             </CardDescription>
           </CardHeader>
 
@@ -462,7 +462,7 @@ export default function SignupPage() {
         </Card>
 
         <div className="mt-4 text-center text-xs text-muted-foreground">
-          <p>Only Bennett University official email addresses are accepted</p>
+          <p>Only official email addresses are accepted</p>
         </div>
       </div>
     </div>

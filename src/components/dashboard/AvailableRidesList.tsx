@@ -51,6 +51,8 @@ const AvailableRidesList: React.FC<AvailableRidesListProps> = ({
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
 
   const filteredRides = React.useMemo(() => {
+    let filtered = rides.filter((ride) => ride.availableSeats > 0);
+
   let filtered = rides.filter((ride) => {
   if (ride.availableSeats <= 0) return false;
 

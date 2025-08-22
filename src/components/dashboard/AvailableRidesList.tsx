@@ -51,7 +51,16 @@ const AvailableRidesList: React.FC<AvailableRidesListProps> = ({
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
 
   const filteredRides = React.useMemo(() => {
-    let filtered = rides.filter((ride) => ride.availableSeats > 0);
+  let filtered = rides.filter((ride) => {
+  if (ride.availableSeats <= 0) return false;
+
+  // ✅ Remove past rides (IST timezone)
+  const now = new Date();
+  const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+  const rideDate = new Date(ride.date);
+
+  return rideDate >= istNow;
+});
 
     switch (filterBy) {
       case "almostFull":

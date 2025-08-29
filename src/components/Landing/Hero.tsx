@@ -108,44 +108,59 @@ export default function Hero() {
         {/* Hero Card */}
         <div className="relative">
           <div className="relative">
-        <MagicCard>
-            <div className="glass-effect rounded-2xl p-8 transform transition-transform duration-500">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6">
-                <div className="flex items-center space-x-4 mb-6">
-                  <div className="w-12 h-12 bg-gradient-to-r from-carpool-500 to-carpool-600 rounded-full flex items-center justify-center">
-                    <Users className="h-6 w-6 text-white" />
+            <MagicCard>
+              <div className="glass-effect rounded-2xl p-4 sm:p-6 md:p-8 transform transition-transform duration-500">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-4 sm:p-6">
+                  
+                  <div className="flex items-center space-x-3 sm:space-x-4 mb-4 sm:mb-6">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-carpool-500 to-carpool-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Users className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold text-sm sm:text-base truncate">
+                        Today&apos;s Ride
+                      </h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                        Bennett → Greater Noida
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold">Today&apos;s Ride</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Bennett → Greater Noida
-                    </p>
-                  </div>
-                </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Departure</span>
-                    <span className="font-medium">8:00 AM</span>
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-muted-foreground">
+                        Departure
+                      </span>
+                      <span className="font-medium text-sm sm:text-base">
+                        8:00 AM
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-muted-foreground">
+                        Available Seats
+                      </span>
+                      <span className="font-medium text-carpool-600 text-sm sm:text-base">
+                        2/4
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-muted-foreground">
+                        Cost per person
+                      </span>
+                      <span className="font-bold text-carpool-600 text-sm sm:text-base">
+                        ₹100
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Available Seats</span>
-                    <span className="font-medium text-carpool-600">2/4</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Cost per person</span>
-                    <span className="font-bold text-carpool-600">₹100</span>
-                  </div>
-                </div>
 
-                <Button className="w-full mt-6 bg-carpool-600 hover:bg-carpool-700">
-                  <Link href="/login" className="flex items-center">
-                    Join Ride
-                  </Link>
-                </Button>
+                  <Button className="w-full mt-4 sm:mt-6 bg-carpool-600 hover:bg-carpool-700 h-10 sm:h-11 text-sm sm:text-base">
+                    <Link href="/login" className="flex items-center">
+                      Join Ride
+                    </Link>
+                  </Button>
+                </div>
               </div>
-            </div>
-        </MagicCard>
+            </MagicCard>
 
             <div className="absolute -top-4 -right-4 bg-carpool-500 text-white rounded-full p-3 shadow-lg animate-bounce">
               <Star className="h-5 w-5 fill-current" />

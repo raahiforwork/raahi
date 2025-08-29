@@ -51,39 +51,52 @@ const AvailableRidesList: React.FC<AvailableRidesListProps> = ({
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
 
   const filteredRides = React.useMemo(() => {
-    let filtered = rides.filter((ride) => ride.availableSeats > 0);
+  let filtered = rides.filter((ride) => {
+   
+    if (ride.availableSeats <= 0) return false;
+    
+   
+    const rideDateTime = new Date(`${ride.date}T${ride.time}`);
+    const now = new Date();
+    
+ 
+    if (rideDateTime <= now) return false;
+    
+    return true;
+  });
 
-    switch (filterBy) {
-      case "almostFull":
-        filtered = filtered.filter((ride) => {
-          const availabilityPercentage =
-            (ride.availableSeats / ride.totalSeats) * 100;
-          return availabilityPercentage <= 25 && availabilityPercentage > 0;
-        });
-        break;
-      case "available":
-        filtered = filtered.filter((ride) => {
-          const availabilityPercentage =
-            (ride.availableSeats / ride.totalSeats) * 100;
-          return availabilityPercentage > 25;
-        });
-        break;
-      case "today":
-        const today = new Date().toISOString().split("T")[0];
-        filtered = filtered.filter((ride) => ride.date === today);
-        break;
-      case "tomorrow":
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split("T")[0];
-        filtered = filtered.filter((ride) => ride.date === tomorrowStr);
-        break;
-      default:
-        break;
-    }
+  
+  switch (filterBy) {
+    case "almostFull":
+      filtered = filtered.filter((ride) => {
+        const availabilityPercentage =
+          (ride.availableSeats / ride.totalSeats) * 100;
+        return availabilityPercentage <= 25 && availabilityPercentage > 0;
+      });
+      break;
+    case "available":
+      filtered = filtered.filter((ride) => {
+        const availabilityPercentage =
+          (ride.availableSeats / ride.totalSeats) * 100;
+        return availabilityPercentage > 25;
+      });
+      break;
+    case "today":
+      const today = new Date().toISOString().split("T")[0];
+      filtered = filtered.filter((ride) => ride.date === today);
+      break;
+    case "tomorrow":
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split("T")[0];
+      filtered = filtered.filter((ride) => ride.date === tomorrowStr);
+      break;
+    default:
+      break;
+  }
 
-    return filtered;
-  }, [rides, filterBy]);
+  return filtered;
+}, [rides, filterBy]);
 
   const sortedRides = React.useMemo(() => {
     const sorted = [...filteredRides];

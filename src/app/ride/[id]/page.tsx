@@ -879,7 +879,7 @@ const RideDetailsPage = () => {
                     ? ride.totalPrice
                     : ride.pricePerSeat}
                 </div>
-                <div className="text-sm text-gray-400 mb-2">per person</div>
+                <div className="text-sm text-gray-400 mb-2">total price</div>
                 {availabilityPercentage <= 25 &&
                 availabilityPercentage > 0 ? (
                   <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30">

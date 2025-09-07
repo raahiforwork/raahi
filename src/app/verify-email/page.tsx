@@ -185,7 +185,7 @@ export default function VerifyEmailPage() {
           </div>
           <CardTitle>Verify Your Email</CardTitle>
           <CardDescription>
-            Enter the 6-digit code sent to your Bennett email address
+            Enter the 6-digit code sent to your email address
           </CardDescription>
           {userEmail && (
             <p className="text-xs text-muted-foreground font-mono">
